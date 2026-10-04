@@ -1,5 +1,53 @@
+<script module>
+  import * as stylex from '@stylexjs/stylex';
+  import { t } from '../lib/tokens.stylex.js';
+  import { ui } from '../lib/ui.stylex.js';
+
+  const s = stylex.create({
+    place: { position: 'relative', display: 'flex', flexDirection: 'column', gap: 4 },
+    row: { position: 'relative', display: 'flex', alignItems: 'center' },
+    input: { paddingInlineEnd: 30 },
+    clear: {
+      position: 'absolute',
+      insetInlineEnd: 2,
+      fontSize: 17,
+      lineHeight: 1,
+      paddingBlock: 2,
+      paddingInline: 7,
+    },
+    list: {
+      position: 'absolute',
+      zIndex: 40,
+      insetInlineStart: 0,
+      insetInlineEnd: 0,
+      top: '100%',
+      marginBlock: 3, marginBlockEnd: 0,
+      marginInline: 0,
+      padding: 4,
+      listStyle: 'none',
+      backgroundColor: t.surface,
+      borderWidth: 1,
+      borderStyle: 'solid',
+      borderColor: t.lineStrong,
+      borderRadius: t.radiusSm,
+      boxShadow: t.shadow,
+      maxHeight: 240,
+      overflowY: 'auto',
+    },
+    option: {
+      paddingBlock: 6,
+      paddingInline: 9,
+      borderRadius: 5,
+      cursor: 'pointer',
+      fontSize: 13,
+    },
+    optionOn: { backgroundColor: t.accentWash, color: t.accentInk },
+    warnHint: { color: t.warn },
+  });
+</script>
+
 <script>
-  import { api } from '../lib/api.js';
+  import { api } from '../lib/gql.js';
 
   // place/lat/lon travel together: a typed string with no coordinates is not a
   // usable centre for a radius, so typing clears the fix and only a pick from
@@ -12,23 +60,24 @@
   let busy = $state(false);
 
   let timer = null;
-  let controller = null;
+  let seq = 0;
   let listId = `places-${Math.random().toString(36).slice(2, 8)}`;
 
   const close = () => { open = false; active = -1; };
 
   function cancel() {
     clearTimeout(timer);
-    controller?.abort();
-    controller = null;
+    // Bumping the sequence orphans any reply still in flight.
+    seq += 1;
   }
 
   async function lookup(q) {
     cancel();
-    controller = new AbortController();
+    const mine = seq;
     busy = true;
     try {
-      const found = await api.places(q, controller.signal);
+      const found = await api.places(q);
+      if (mine !== seq) return;          // a newer keystroke won
       items = Array.isArray(found) ? found : [];
       active = -1;
       open = items.length > 0;
@@ -38,7 +87,7 @@
       items = [];
       close();
     } finally {
-      busy = false;
+      if (mine === seq) busy = false;
     }
   }
 
@@ -88,8 +137,8 @@
   }
 </script>
 
-<div class="place">
-  <div class="input-row">
+<div {...stylex.attrs(s.place)}>
+  <div {...stylex.attrs(s.row)}>
     <input
       type="text"
       role="combobox"
@@ -105,71 +154,36 @@
       onkeydown={onKeydown}
       onblur={() => setTimeout(close, 140)}
       onfocus={() => { if (items.length) open = true; }}
+      {...stylex.attrs(ui.input, s.input)}
     />
     {#if place}
-      <button type="button" class="quiet clear" onclick={clearPlace} title="clear the centre">×</button>
+      <button type="button" onclick={clearPlace} title="clear the centre"
+        {...stylex.attrs(ui.button, ui.quiet, s.clear)}>×</button>
     {/if}
   </div>
 
   {#if open}
-    <ul class="list" id={listId} role="listbox">
+    <ul id={listId} role="listbox" {...stylex.attrs(s.list)}>
       {#each items as item, i (item.label)}
         <li
           id="{listId}-{i}"
           role="option"
           aria-selected={i === active}
-          class:on={i === active}
           onmousedown={(e) => { e.preventDefault(); choose(i); }}
           onmouseenter={() => (active = i)}
+          {...stylex.attrs(s.option, i === active && s.optionOn)}
         >{item.label}</li>
       {/each}
     </ul>
   {/if}
 
   {#if busy}
-    <span class="hint">looking…</span>
+    <span {...stylex.attrs(ui.hint)}>looking…</span>
   {:else if place && lat == null}
-    <span class="hint warn-hint">no coordinates — pick a town from the list for a radius to work</span>
+    <span {...stylex.attrs(ui.hint, s.warnHint)}>no coordinates — pick a town from the list for a radius to work</span>
   {:else if lat != null}
-    <span class="hint mono">{lat.toFixed(3)}, {lon.toFixed(3)}</span>
+    <span {...stylex.attrs(ui.hint, ui.mono)}>{lat.toFixed(3)}, {lon.toFixed(3)}</span>
   {:else}
-    <span class="hint">optional — sets the centre for the radius and biases Wallapop</span>
+    <span {...stylex.attrs(ui.hint)}>optional — sets the centre for the radius and biases Wallapop</span>
   {/if}
 </div>
-
-<style>
-  .place { position: relative; display: flex; flex-direction: column; gap: 4px; }
-  .input-row { position: relative; display: flex; align-items: center; }
-  .input-row input { padding-right: 30px; }
-  .clear {
-    position: absolute;
-    right: 2px;
-    font-size: 17px;
-    line-height: 1;
-    padding: 2px 7px;
-  }
-  .list {
-    position: absolute;
-    z-index: 40;
-    left: 0;
-    right: 0;
-    top: 100%;
-    margin: 3px 0 0;
-    padding: 4px;
-    list-style: none;
-    background: var(--surface);
-    border: 1px solid var(--line-strong);
-    border-radius: var(--radius-sm);
-    box-shadow: var(--shadow);
-    max-height: 240px;
-    overflow-y: auto;
-  }
-  .list li {
-    padding: 6px 9px;
-    border-radius: 5px;
-    cursor: pointer;
-    font-size: 13px;
-  }
-  .list li.on { background: var(--accent-wash); color: var(--accent-ink); }
-  .warn-hint { color: var(--warn); }
-</style>

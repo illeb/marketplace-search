@@ -1,7 +1,86 @@
+<script module>
+  import * as stylex from '@stylexjs/stylex';
+  import { t } from './lib/tokens.stylex.js';
+  import { ui } from './lib/ui.stylex.js';
+
+  const s = stylex.create({
+    topbar: {
+      display: 'flex',
+      flexWrap: 'wrap',
+      alignItems: 'baseline',
+      rowGap: 6,
+      columnGap: 16,
+      paddingBlock: { default: 14, '@media (max-width: 480px)': 12 },
+      paddingInline: { default: 20, '@media (max-width: 480px)': 14 },
+      backgroundColor: t.surface,
+      borderBottomWidth: 1,
+      borderBottomStyle: 'solid',
+      borderBottomColor: t.line,
+    },
+    h1: { margin: 0, fontSize: 17, letterSpacing: '-0.015em' },
+    stats: {
+      margin: 0,
+      marginInlineStart: { default: 'auto', '@media (max-width: 480px)': 0 },
+      fontSize: 12,
+      color: t.muted,
+    },
+    banner: {
+      display: 'flex',
+      alignItems: 'center',
+      gap: 10,
+      marginBlockStart: { default: 12, '@media (max-width: 960px)': 10 },
+      marginInline: { default: 20, '@media (max-width: 960px)': 14 },
+      paddingBlock: 9,
+      paddingInline: 13,
+      borderRadius: t.radius,
+      backgroundColor: t.badWash,
+      borderWidth: 1,
+      borderStyle: 'solid',
+      borderColor: t.bad,
+      color: t.ink,
+      fontSize: 13,
+    },
+    bannerText: { flexGrow: 1 },
+    shell: {
+      display: 'grid',
+      gridTemplateColumns: {
+        default: 'minmax(230px, 290px) minmax(0, 1fr)',
+        '@media (max-width: 960px)': 'minmax(0, 1fr)',
+      },
+      gap: { default: 16, '@media (max-width: 480px)': 12 },
+      maxWidth: 1440,
+      marginInline: 'auto',
+      paddingBlock: { default: 16, '@media (max-width: 480px)': 10 },
+      paddingBlockEnd: { default: 40, '@media (max-width: 960px)': 32, '@media (max-width: 480px)': 28 },
+      paddingInline: { default: 20, '@media (max-width: 960px)': 14, '@media (max-width: 480px)': 12 },
+      alignItems: 'start',
+    },
+    aside: {
+      position: { default: 'sticky', '@media (max-width: 960px)': 'static' },
+      top: 14,
+      minWidth: 0,
+    },
+    main: { display: 'flex', flexDirection: 'column', gap: 12, minWidth: 0 },
+    placeholder: {
+      margin: 0,
+      paddingBlock: 36,
+      paddingInline: 20,
+      textAlign: 'center',
+      color: t.muted,
+      backgroundColor: t.surface,
+      borderWidth: 1,
+      borderStyle: 'dashed',
+      borderColor: t.line,
+      borderRadius: t.radius,
+    },
+  });
+</script>
+
 <script>
-  import { api } from './lib/api.js';
+  import { api } from './lib/gql.js';
   import { toDraft, newDraft, changedFields, SEARCH_FIELDS } from './lib/search.js';
   import { isNew, specsStated } from './lib/format.js';
+  import { registerTools } from './lib/webmcp.js';
 
   import SearchList from './components/SearchList.svelte';
   import FilterEditor from './components/FilterEditor.svelte';
@@ -61,7 +140,7 @@
       searches.map((s) => [
         s.id,
         rowsBySearch[s.id]
-          ? rowsBySearch[s.id].filter((r) => !r.sold_at).length
+          ? rowsBySearch[s.id].filter((r) => !r.soldAt).length
           : (s.count ?? null),
       ]),
     ),
@@ -70,7 +149,7 @@
   const visible = $derived.by(() => {
     const list = rows ?? [];
     return list.filter((r) => {
-      if (view.hideSold && r.sold_at) return false;
+      if (view.hideSold && r.soldAt) return false;
       if (view.newOnly && !isNew(r)) return false;
       if (view.specsOnly && !specsStated(r)) return false;
       if (view.shipsOnly && !r.shippable) return false;
@@ -109,6 +188,38 @@
     }
     loadRows(id);
   }
+
+  $effect(() => registerTools({
+    searches: async () => (searches.length ? searches : api.searches()),
+    listings: async (id) => rowsBySearch[id] ?? (await loadRows(id)) ?? rowsBySearch[id] ?? [],
+    select,
+    createSearch: async (input) => {
+      const created = await api.createSearch(input);
+      searches = [...searches, created];
+      drafts[created.id] = toDraft(created);
+      select(created.id);
+      return created;
+    },
+    updateSearch: async (id, input) => {
+      const updated = await api.updateSearch(id, input);
+      searches = searches.map((x) => (x.id === updated.id ? updated : x));
+      drafts[updated.id] = toDraft(updated);
+      return updated;
+    },
+    deleteSearch: async (id) => {
+      const gone = await api.deleteSearch(id);
+      if (gone) {
+        searches = searches.filter((x) => x.id !== id);
+        if (selectedId === id) select(searches[0]?.id ?? null);
+      }
+      return gone;
+    },
+    runSearch: async (id) => {
+      const r = await api.runSearch(id);
+      await Promise.all([loadRows(id, { force: true }), refreshSearches(), refreshStats()]);
+      return r;
+    },
+  }));
 
   async function boot() {
     try {
@@ -211,12 +322,12 @@
   }
 
   // The sweep endpoint only says it started, so progress is inferred by watching
-  // last_run_at move on every enabled search.
+  // lastRunAt move on every enabled search.
   let sweepTimer = null;
   async function sweep() {
     if (sweeping) return;
     error = null;
-    const before = Object.fromEntries(searches.map((s) => [s.id, s.last_run_at ?? '']));
+    const before = Object.fromEntries(searches.map((s) => [s.id, s.lastRunAt ?? '']));
     const watching = searches.filter((s) => s.enabled).map((s) => s.id);
     try {
       await api.sweep();
@@ -232,12 +343,12 @@
       refreshStats();
       // Counts arrive with the search list, so only the search on screen needs
       // its rows pulled again. Reloading all of them was megabytes nobody reads.
-      const moved = searches.filter((s) => (s.last_run_at ?? '') !== (before[s.id] ?? ''));
+      const moved = searches.filter((s) => (s.lastRunAt ?? '') !== (before[s.id] ?? ''));
       if (moved.some((s) => s.id === selectedId)) await loadRows(selectedId, { force: true });
       for (const s of moved) if (s.id !== selectedId) delete rowsBySearch[s.id];
       const allDone = watching.every((id) => {
         const s = searches.find((x) => x.id === id);
-        return s && (s.last_run_at ?? '') !== (before[id] ?? '');
+        return s && (s.lastRunAt ?? '') !== (before[id] ?? '');
       });
       if (allDone || Date.now() > deadline) {
         clearInterval(sweepTimer);
@@ -248,10 +359,10 @@
   }
 </script>
 
-<header class="topbar">
-  <h1>Marketplace&nbsp;Hunter</h1>
+<header {...stylex.attrs(s.topbar)}>
+  <h1 {...stylex.attrs(s.h1)}>Marketplace&nbsp;Hunter</h1>
   {#if stats}
-    <p class="stats mono">
+    <p {...stylex.attrs(ui.mono, s.stats)}>
       {stats.listings} listings · {stats.live} live · {stats.sold} sold ·
       {stats.sellers} sellers · {stats.searches} searches
     </p>
@@ -259,14 +370,15 @@
 </header>
 
 {#if error}
-  <div class="banner" role="alert">
-    <span>{error}</span>
-    <button type="button" class="quiet" onclick={() => (error = null)}>Dismiss</button>
+  <div role="alert" {...stylex.attrs(s.banner)}>
+    <span {...stylex.attrs(s.bannerText)}>{error}</span>
+    <button type="button" onclick={() => (error = null)}
+      {...stylex.attrs(ui.button, ui.quiet)}>Dismiss</button>
   </div>
 {/if}
 
-<div class="shell">
-  <aside>
+<div {...stylex.attrs(s.shell)}>
+  <aside {...stylex.attrs(s.aside)}>
     <SearchList
       {searches}
       {counts}
@@ -280,11 +392,11 @@
     />
   </aside>
 
-  <main>
+  <main {...stylex.attrs(s.main)}>
     {#if !booted}
-      <p class="placeholder">Loading…</p>
+      <p {...stylex.attrs(s.placeholder)}>Loading…</p>
     {:else if !draft}
-      <p class="placeholder">
+      <p {...stylex.attrs(s.placeholder)}>
         {searches.length ? 'Pick a search on the left.' : 'No searches yet — create one to begin.'}
       </p>
     {:else}
@@ -320,11 +432,11 @@
         />
 
         {#if loadingRows && !rows}
-          <p class="placeholder">Loading listings…</p>
+          <p {...stylex.attrs(s.placeholder)}>Loading listings…</p>
         {:else if !rows?.length}
-          <p class="placeholder">Nothing matched yet. Press <b>Run now</b> to sweep the marketplaces.</p>
+          <p {...stylex.attrs(s.placeholder)}>Nothing matched yet. Press <b>Run now</b> to sweep the marketplaces.</p>
         {:else if !visible.length}
-          <p class="placeholder">Every one of the {rows.length} matches is hidden by the view filters.</p>
+          <p {...stylex.attrs(s.placeholder)}>Every one of the {rows.length} matches is hidden by the view filters.</p>
         {:else}
           <ResultsTable rows={visible} search={selected} />
         {/if}
@@ -332,67 +444,3 @@
     {/if}
   </main>
 </div>
-
-<style>
-  .topbar {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: baseline;
-    gap: 6px 16px;
-    padding: 14px 20px;
-    background: var(--surface);
-    border-bottom: 1px solid var(--line);
-  }
-  h1 { font-size: 17px; margin: 0; letter-spacing: -0.015em; }
-  .stats { margin: 0; margin-left: auto; font-size: 12px; color: var(--muted); }
-
-  .banner {
-    display: flex;
-    gap: 10px;
-    align-items: center;
-    margin: 12px 20px 0;
-    padding: 9px 13px;
-    border-radius: var(--radius);
-    background: var(--bad-wash);
-    border: 1px solid var(--bad);
-    color: var(--ink);
-    font-size: 13px;
-  }
-  .banner span { flex: 1; }
-
-  .shell {
-    display: grid;
-    grid-template-columns: minmax(230px, 290px) minmax(0, 1fr);
-    gap: 16px;
-    max-width: 1440px;
-    margin: 0 auto;
-    padding: 16px 20px 40px;
-    align-items: start;
-  }
-
-  aside { position: sticky; top: 14px; min-width: 0; }
-
-  main { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
-
-  .placeholder {
-    margin: 0;
-    padding: 36px 20px;
-    text-align: center;
-    color: var(--muted);
-    background: var(--surface);
-    border: 1px dashed var(--line);
-    border-radius: var(--radius);
-  }
-
-  @media (max-width: 960px) {
-    .shell { grid-template-columns: minmax(0, 1fr); padding: 12px 14px 32px; }
-    aside { position: static; }
-    .banner { margin: 10px 14px 0; }
-  }
-
-  @media (max-width: 480px) {
-    .topbar { padding: 12px 14px; }
-    .stats { margin-left: 0; }
-    .shell { padding: 10px 12px 28px; gap: 12px; }
-  }
-</style>

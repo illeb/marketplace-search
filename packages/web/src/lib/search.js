@@ -1,47 +1,50 @@
 // The saved-search record: its field list, its defaults, and the helpers that
 // keep an editing draft honest about what has and has not been saved.
+//
+// Fields are camelCase to match the GraphQL schema, and the multi-selects are
+// real arrays now rather than comma-separated strings.
 
 export const SEARCH_FIELDS = [
   'name', 'query', 'kind',
-  'min_price', 'max_price',
+  'minPrice', 'maxPrice',
   'sources', 'countries',
-  'chassis', 'vendor', 'brands', 'cpu_tiers',
-  'min_gen', 'min_year', 'min_ram', 'min_storage',
-  'min_reviews',
-  'place', 'lat', 'lon', 'radius_km', 'include_unlocated',
+  'chassis', 'vendor', 'brands', 'cpuTiers',
+  'minGen', 'minYear', 'minRam', 'minStorage',
+  'minReviews',
+  'place', 'lat', 'lon', 'radiusKm', 'includeUnlocated',
   'enabled',
 ];
 
-// Fields the server stores as numbers. lat/lon are the exception: they are
-// numbers but null is meaningful, so they are handled on their own.
 const NUMERIC = new Set([
-  'min_price', 'max_price', 'min_gen', 'min_year', 'min_ram', 'min_storage',
-  'min_reviews', 'radius_km', 'include_unlocated', 'enabled',
+  'minPrice', 'maxPrice', 'minGen', 'minYear', 'minRam', 'minStorage',
+  'minReviews', 'radiusKm',
 ]);
+const BOOLEAN = new Set(['includeUnlocated', 'enabled']);
+export const LIST_FIELDS = new Set(['sources', 'countries', 'chassis', 'brands', 'cpuTiers']);
 
 export const DEFAULT_SEARCH = {
   name: 'New search',
   query: '',
-  kind: 'computer',
-  min_price: 0,
-  max_price: 300,
-  sources: 'subito,wallapop,vinted',
-  countries: '',
-  chassis: '',
-  vendor: '',
-  brands: '',
-  cpu_tiers: '',
-  min_gen: 0,
-  min_year: 0,
-  min_ram: 0,
-  min_storage: 0,
-  min_reviews: 0,
+  kind: 'COMPUTER',
+  minPrice: 0,
+  maxPrice: 300,
+  sources: ['subito', 'wallapop', 'vinted'],
+  countries: [],
+  chassis: [],
+  vendor: null,
+  brands: [],
+  cpuTiers: [],
+  minGen: 0,
+  minYear: 0,
+  minRam: 0,
+  minStorage: 0,
+  minReviews: 0,
   place: '',
   lat: null,
   lon: null,
-  radius_km: 0,
-  include_unlocated: 1,
-  enabled: 1,
+  radiusKm: 0,
+  includeUnlocated: true,
+  enabled: true,
 };
 
 /** Pull just the editable fields off a server record, coerced to their types. */
@@ -50,6 +53,9 @@ export function toDraft(record) {
   for (const f of SEARCH_FIELDS) {
     const v = record?.[f];
     if (f === 'lat' || f === 'lon') out[f] = v == null || v === '' ? null : Number(v);
+    else if (f === 'vendor') out[f] = v ?? null;
+    else if (LIST_FIELDS.has(f)) out[f] = [...(v ?? DEFAULT_SEARCH[f])];
+    else if (BOOLEAN.has(f)) out[f] = Boolean(v ?? DEFAULT_SEARCH[f]);
     else if (NUMERIC.has(f)) out[f] = Number(v ?? DEFAULT_SEARCH[f]) || 0;
     else out[f] = String(v ?? DEFAULT_SEARCH[f] ?? '');
   }
@@ -58,28 +64,34 @@ export function toDraft(record) {
 
 export const newDraft = () => toDraft(DEFAULT_SEARCH);
 
+const sameList = (a, b) =>
+  a.length === b.length && a.every((x, i) => x === b[i]);
+
 /** Which fields differ between the draft and what the server last returned. */
 export function changedFields(draft, saved) {
   if (!saved) return SEARCH_FIELDS.slice();
   const base = toDraft(saved);
-  return SEARCH_FIELDS.filter((f) => draft[f] !== base[f]);
+  return SEARCH_FIELDS.filter((f) =>
+    LIST_FIELDS.has(f) ? !sameList(draft[f], base[f]) : draft[f] !== base[f]);
 }
 
-/* ---- the csv-backed multi-selects ---------------------------------------- */
+/** Only the changed fields, shaped for a SearchInput. */
+export function toInput(draft, fields) {
+  const out = {};
+  for (const f of fields) out[f] = draft[f];
+  return out;
+}
 
-export const csvToList = (s) =>
-  String(s || '').split(',').map((x) => x.trim()).filter(Boolean);
+/* ---- the array-backed multi-selects -------------------------------------- */
 
-export const listToCsv = (list) => list.join(',');
-
-/** Toggle one value in a csv string, keeping `order` as the canonical order. */
-export function toggleCsv(csv, value, order) {
-  const have = new Set(csvToList(csv));
+/** Toggle one value, keeping `order` as the canonical order. */
+export function toggleIn(list, value, order) {
+  const have = new Set(list);
   if (have.has(value)) have.delete(value);
   else have.add(value);
   const known = order.filter((o) => have.has(o));
   const extra = [...have].filter((v) => !order.includes(v));
-  return listToCsv([...known, ...extra]);
+  return [...known, ...extra];
 }
 
 /* ---- option vocabularies, mirroring what the backend parses -------------- */
@@ -91,9 +103,9 @@ export const SOURCES = [
 ];
 
 export const KINDS = [
-  { value: 'computer', label: 'Computer' },
-  { value: 'memory', label: 'Memory' },
-  { value: 'other', label: 'Other' },
+  { value: 'COMPUTER', label: 'Computer' },
+  { value: 'MEMORY', label: 'Memory' },
+  { value: 'OTHER', label: 'Other' },
 ];
 
 export const CHASSIS = [
@@ -120,8 +132,8 @@ export const CPU_TIERS = [
 ];
 
 export const VENDORS = [
-  { value: '', label: 'Any' },
-  { value: 'Intel', label: 'Intel' },
+  { value: null, label: 'Any' },
+  { value: 'INTEL', label: 'Intel' },
   { value: 'AMD', label: 'AMD' },
 ];
 

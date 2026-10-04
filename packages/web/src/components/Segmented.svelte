@@ -1,42 +1,53 @@
+<script module>
+  import * as stylex from '@stylexjs/stylex';
+  import { t } from '../lib/tokens.stylex.js';
+
+  const s = stylex.create({
+    group: {
+      display: 'inline-flex',
+      flexWrap: 'wrap',
+      gap: 2,
+      padding: 2,
+      backgroundColor: t.surface2,
+      borderWidth: 1,
+      borderStyle: 'solid',
+      borderColor: t.line,
+      borderRadius: t.radiusSm,
+    },
+    option: {
+      flexGrow: 1,
+      font: 'inherit',
+      fontSize: 13,
+      lineHeight: 1,
+      paddingBlock: 6,
+      paddingInline: 11,
+      borderWidth: 0,
+      borderRadius: 5,
+      cursor: 'pointer',
+      backgroundColor: 'transparent',
+      color: { default: t.muted, ':hover': t.ink },
+      boxShadow: null,
+    },
+    on: {
+      backgroundColor: t.surface,
+      color: t.ink,
+      boxShadow: '0 1px 2px rgba(0,0,0,.12)',
+    },
+  });
+</script>
+
 <script>
   let { options, value = $bindable(''), label = '' } = $props();
 </script>
 
-<div class="segmented" role="radiogroup" aria-label={label}>
-  {#each options as opt (opt.value)}
+<div {...stylex.attrs(s.group)} role="radiogroup" aria-label={label}>
+  {#each options as opt (String(opt.value))}
     <button
       type="button"
       role="radio"
       aria-checked={value === opt.value}
-      class:on={value === opt.value}
       onclick={() => (value = opt.value)}
+      {...stylex.attrs(s.option, value === opt.value && s.on)}
     >{opt.label}</button>
   {/each}
 </div>
-
-<style>
-  .segmented {
-    display: inline-flex;
-    background: var(--surface-2);
-    border: 1px solid var(--line);
-    border-radius: var(--radius-sm);
-    padding: 2px;
-    gap: 2px;
-    flex-wrap: wrap;
-  }
-  .segmented button {
-    border: 0;
-    background: transparent;
-    color: var(--muted);
-    padding: 4px 11px;
-    border-radius: 5px;
-    font-size: 13px;
-    flex: 1 1 auto;
-  }
-  .segmented button:hover { color: var(--ink); }
-  .segmented button.on {
-    background: var(--surface);
-    color: var(--ink);
-    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.12);
-  }
-</style>

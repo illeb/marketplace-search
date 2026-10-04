@@ -1,3 +1,129 @@
+<script module>
+  import * as stylex from '@stylexjs/stylex';
+  import { t } from '../lib/tokens.stylex.js';
+  import { ui } from '../lib/ui.stylex.js';
+
+  // StyleX has no descendant selectors, so what used to be `.item.on .count`
+  // becomes a flag handed to the child. Every parent state that used to reach
+  // into a child is passed explicitly below.
+  const s = stylex.create({
+    nav: { display: 'flex', flexDirection: 'column', gap: 10 },
+    head: { display: 'flex', alignItems: 'center', gap: 8 },
+    h2: {
+      flexGrow: 1,
+      margin: 0,
+      fontSize: 11,
+      fontWeight: 700,
+      letterSpacing: '0.06em',
+      textTransform: 'uppercase',
+      color: t.muted,
+    },
+    newBtn: { fontSize: 12.5, paddingBlock: 5, paddingInline: 10, whiteSpace: 'nowrap' },
+    ul: { listStyle: 'none', margin: 0, padding: 0, display: 'flex', flexDirection: 'column', gap: 5 },
+
+    item: {
+      position: 'relative',
+      minWidth: 0,
+      display: 'flex',
+      alignItems: 'stretch',
+      flexWrap: 'wrap',
+      overflow: 'hidden',
+      backgroundColor: t.surface,
+      borderWidth: 1,
+      borderStyle: 'solid',
+      borderColor: t.line,
+      borderRadius: t.radius,
+    },
+    itemOn: { borderColor: t.accent, backgroundColor: t.accentWash },
+    itemOff: { opacity: 0.68 },
+    itemDraft: { borderStyle: 'dashed' },
+
+    pick: {
+      flexGrow: 1,
+      flexShrink: 1,
+      flexBasis: '0%',
+      minWidth: 0,
+      display: 'flex',
+      alignItems: 'center',
+      gap: 8,
+      textAlign: 'left',
+      font: 'inherit',
+      fontSize: 14,
+      color: t.ink,
+      borderWidth: 0,
+      borderRadius: 0,
+      cursor: 'pointer',
+      paddingBlock: 9,
+      paddingInlineStart: 11,
+      paddingInlineEnd: 4,
+      backgroundColor: { default: 'transparent', ':hover': t.surface2 },
+    },
+    pickOn: { backgroundColor: { default: 'transparent', ':hover': 'transparent' } },
+
+    body: { flexGrow: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 1 },
+    bodyDraft: { paddingBlock: 9, paddingInline: 11 },
+    name: { fontWeight: 600, display: 'flex', alignItems: 'center', gap: 6 },
+    nameOff: { textDecoration: 'line-through' },
+    sub: {
+      fontSize: 11.5,
+      fontWeight: 400,
+      color: t.muted,
+      overflow: 'hidden',
+      textOverflow: 'ellipsis',
+      whiteSpace: 'nowrap',
+    },
+    dot: { width: 7, height: 7, borderRadius: '50%', backgroundColor: t.warn, flexGrow: 0, flexShrink: 0 },
+    count: {
+      flexGrow: 0, flexShrink: 0,
+      fontSize: 12.5,
+      fontWeight: 700,
+      color: t.muted,
+      paddingBlock: 1,
+      paddingInline: 7,
+      borderRadius: 999,
+      backgroundColor: t.surface2,
+    },
+    countOn: { backgroundColor: t.surface, color: t.accentInk },
+
+    del: {
+      fontSize: 17,
+      lineHeight: 1,
+      paddingBlock: 0,
+      paddingInline: 11,
+      borderRadius: 0,
+      color: { default: t.faint, ':hover': t.bad },
+      backgroundColor: { default: 'transparent', ':hover': t.badWash },
+      borderColor: 'transparent',
+    },
+
+    confirm: {
+      flexGrow: 1, flexShrink: 0, flexBasis: '100%',
+      display: 'flex',
+      flexWrap: 'wrap',
+      alignItems: 'center',
+      gap: 6,
+      paddingBlock: 9,
+      paddingInline: 11,
+      backgroundColor: t.badWash,
+      fontSize: 12,
+      color: t.ink,
+    },
+    confirmText: { flexGrow: 1, flexShrink: 1, flexBasis: 140 },
+    confirmBtn: { fontSize: 12, paddingBlock: 4, paddingInline: 9 },
+
+    empty: {
+      paddingBlock: 16,
+      paddingInline: 12,
+      textAlign: 'center',
+      color: t.muted,
+      borderWidth: 1,
+      borderStyle: 'dashed',
+      borderColor: t.line,
+      borderRadius: t.radius,
+    },
+  });
+</script>
+
 <script>
   let {
     searches,
@@ -17,162 +143,72 @@
   }
 </script>
 
-<nav class="searches" aria-label="Saved searches">
-  <div class="head">
-    <h2>Searches</h2>
-    <button type="button" class="primary new" onclick={onnew}>+ New search</button>
+<nav {...stylex.attrs(s.nav)} aria-label="Saved searches">
+  <div {...stylex.attrs(s.head)}>
+    <h2 {...stylex.attrs(s.h2)}>Searches</h2>
+    <button type="button" onclick={onnew} {...stylex.attrs(ui.button, ui.primary, s.newBtn)}>
+      + New search
+    </button>
   </div>
 
-  <ul>
+  <ul {...stylex.attrs(s.ul)}>
     {#if draftingNew}
-      <li class="item on draft">
-        <div class="body">
-          <span class="name">New search</span>
-          <span class="sub">unsaved — fill it in and press Create</span>
+      <li {...stylex.attrs(s.item, s.itemOn, s.itemDraft)}>
+        <div {...stylex.attrs(s.body, s.bodyDraft)}>
+          <span {...stylex.attrs(s.name)}>New search</span>
+          <span {...stylex.attrs(s.sub)}>unsaved — fill it in and press Create</span>
         </div>
       </li>
     {/if}
 
-    {#each searches as s (s.id)}
-      {@const count = counts[s.id]}
-      <li class="item" class:on={!draftingNew && s.id === selectedId} class:off={!s.enabled}>
+    {#each searches as item (item.id)}
+      {@const count = counts[item.id]}
+      {@const on = !draftingNew && item.id === selectedId}
+      <li {...stylex.attrs(s.item, on && s.itemOn, !item.enabled && s.itemOff)}>
         <button
           type="button"
-          class="pick"
-          aria-current={!draftingNew && s.id === selectedId ? 'true' : undefined}
-          onclick={() => onselect(s.id)}
+          aria-current={on ? 'true' : undefined}
+          onclick={() => onselect(item.id)}
+          {...stylex.attrs(s.pick, on && s.pickOn)}
         >
-          <span class="body">
-            <span class="name">
-              {s.name || '(unnamed)'}
-              {#if !draftingNew && s.id === selectedId && dirty}<span class="dot" title="unsaved changes"></span>{/if}
+          <span {...stylex.attrs(s.body)}>
+            <span {...stylex.attrs(s.name, !item.enabled && s.nameOff)}>
+              {item.name || '(unnamed)'}
+              {#if on && dirty}<span title="unsaved changes" {...stylex.attrs(s.dot)}></span>{/if}
             </span>
-            <span class="sub">{s.query || 'no search terms'}</span>
+            <span {...stylex.attrs(s.sub)}>{item.query || 'no search terms'}</span>
           </span>
-          <span class="count mono" title="live matches">
+          <span title="live matches" {...stylex.attrs(ui.mono, s.count, on && s.countOn)}>
             {count == null ? '…' : count}
           </span>
         </button>
 
-        {#if deletingId === s.id}
-          <div class="confirm">
-            <span>Delete “{s.name}”? Listings stay in the database.</span>
-            <button type="button" class="danger" onclick={(e) => { e.stopPropagation(); ondelete(s.id); }}>
-              Delete
-            </button>
-            <button type="button" class="quiet" onclick={(e) => confirmFor(s.id, e)}>Keep</button>
+        {#if deletingId === item.id}
+          <div {...stylex.attrs(s.confirm)}>
+            <span {...stylex.attrs(s.confirmText)}>Delete “{item.name}”? Listings stay in the database.</span>
+            <button
+              type="button"
+              onclick={(e) => { e.stopPropagation(); ondelete(item.id); }}
+              {...stylex.attrs(ui.button, ui.danger, s.confirmBtn)}
+            >Delete</button>
+            <button
+              type="button"
+              onclick={(e) => confirmFor(item.id, e)}
+              {...stylex.attrs(ui.button, ui.quiet, s.confirmBtn)}
+            >Keep</button>
           </div>
         {:else}
           <button
             type="button"
-            class="quiet del"
             title="Delete this search"
-            aria-label="Delete {s.name}"
-            onclick={(e) => confirmFor(s.id, e)}
+            aria-label="Delete {item.name}"
+            onclick={(e) => confirmFor(item.id, e)}
+            {...stylex.attrs(ui.button, s.del)}
           >×</button>
         {/if}
       </li>
     {:else}
-      <li class="empty">No searches yet. Create one to begin.</li>
+      <li {...stylex.attrs(s.empty)}>No searches yet. Create one to begin.</li>
     {/each}
   </ul>
 </nav>
-
-<style>
-  .searches { display: flex; flex-direction: column; gap: 10px; }
-  .head { display: flex; align-items: center; gap: 8px; }
-  h2 {
-    font-size: 11px;
-    font-weight: 700;
-    letter-spacing: 0.06em;
-    text-transform: uppercase;
-    color: var(--muted);
-    margin: 0;
-    flex: 1;
-  }
-  .new { font-size: 12.5px; padding: 5px 10px; white-space: nowrap; }
-
-  ul { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 5px; }
-
-  .item {
-    position: relative;
-    min-width: 0;
-    display: flex;
-    align-items: stretch;
-    background: var(--surface);
-    border: 1px solid var(--line);
-    border-radius: var(--radius);
-    overflow: hidden;
-    flex-wrap: wrap;
-  }
-  .item.on { border-color: var(--accent); background: var(--accent-wash); }
-  .item.off .name { text-decoration: line-through; }
-  .item.off { opacity: 0.68; }
-  .item.draft { border-style: dashed; }
-
-  .pick {
-    flex: 1;
-    min-width: 0;
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    text-align: left;
-    border: 0;
-    background: transparent;
-    border-radius: 0;
-    padding: 9px 4px 9px 11px;
-  }
-  .pick:hover { background: var(--surface-2); }
-  .item.on .pick:hover { background: transparent; }
-
-  .body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
-  .draft .body { padding: 9px 11px; }
-  .name { font-weight: 600; display: flex; align-items: center; gap: 6px; }
-  .sub {
-    font-size: 11.5px;
-    font-weight: 400;
-    color: var(--muted);
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-  .dot {
-    width: 7px; height: 7px; border-radius: 50%;
-    background: var(--warn); flex: none;
-  }
-  .count {
-    font-size: 12.5px;
-    font-weight: 700;
-    color: var(--muted);
-    padding: 1px 7px;
-    border-radius: 999px;
-    background: var(--surface-2);
-    flex: none;
-  }
-  .item.on .count { background: var(--surface); color: var(--accent-ink); }
-
-  .del { font-size: 17px; line-height: 1; padding: 0 11px; border-radius: 0; color: var(--faint); }
-  .del:hover { color: var(--bad); background: var(--bad-wash); border-color: transparent; }
-
-  .confirm {
-    flex: 1 0 100%;
-    display: flex;
-    flex-wrap: wrap;
-    gap: 6px;
-    align-items: center;
-    padding: 9px 11px;
-    background: var(--bad-wash);
-    font-size: 12px;
-    color: var(--ink);
-  }
-  .confirm span { flex: 1 1 140px; }
-  .confirm button { font-size: 12px; padding: 4px 9px; }
-
-  .empty {
-    padding: 16px 12px;
-    text-align: center;
-    color: var(--muted);
-    border: 1px dashed var(--line);
-    border-radius: var(--radius);
-  }
-</style>

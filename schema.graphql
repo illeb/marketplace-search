@@ -1,0 +1,127 @@
+# The contract between packages/api (NestJS) and packages/web (urql).
+# Field names are camelCase here; the SQLite columns stay snake_case.
+
+enum SearchKind { COMPUTER, MEMORY, OTHER }
+enum Vendor { INTEL, AMD }
+
+type Search {
+  id: Int!
+  name: String!
+  query: String!
+  kind: SearchKind!
+  minPrice: Float!
+  maxPrice: Float!
+  sources: [String!]!
+  countries: [String!]!
+  place: String
+  lat: Float
+  lon: Float
+  radiusKm: Int!
+  includeUnlocated: Boolean!
+  chassis: [String!]!
+  vendor: Vendor
+  brands: [String!]!
+  cpuTiers: [String!]!
+  minGen: Int!
+  minYear: Int!
+  minRam: Int!
+  minStorage: Int!
+  minReviews: Int!
+  enabled: Boolean!
+  lastRunAt: String
+  "live match count, so the sidebar needs no listings"
+  count: Int!
+  "of those, first matched today"
+  newCount: Int!
+}
+
+input SearchInput {
+  name: String
+  query: String
+  kind: SearchKind
+  minPrice: Float
+  maxPrice: Float
+  sources: [String!]
+  countries: [String!]
+  place: String
+  lat: Float
+  lon: Float
+  radiusKm: Int
+  includeUnlocated: Boolean
+  chassis: [String!]
+  vendor: Vendor
+  brands: [String!]
+  cpuTiers: [String!]
+  minGen: Int
+  minYear: Int
+  minRam: Int
+  minStorage: Int
+  minReviews: Int
+  enabled: Boolean
+}
+
+"""
+null on ramGb, storageGb, year and the rest means the advert never said so,
+which is not the same as the machine having none. Render it as such.
+"""
+type Listing {
+  id: Int!
+  source: String!
+  url: String!
+  title: String!
+  description: String
+  price: Float!
+  city: String
+  country: String
+  shippable: Boolean!
+  firstSeen: String!
+  soldAt: String
+  isNew: Boolean!
+  "null when the advert states no location, not when it is far away"
+  distanceKm: Int
+  vendor: Vendor
+  family: String
+  model: String
+  chassis: String
+  cpu: String
+  cpuNum: String
+  generation: Int
+  year: Int
+  ramGb: Int
+  ssdGb: Int
+  hddGb: Int
+  storageGb: Int
+  memTotal: Int
+  memSpeed: Int
+  tiered: Boolean!
+  reviews: Int
+  positivePct: Int
+  cautions: [String!]!
+  ageDays: Int!
+  priceMin: Float
+  priceMax: Float
+}
+
+type Place { label: String!, lat: Float!, lon: Float!, country: String! }
+type Country { code: String!, name: String! }
+type Stats { listings: Int!, live: Int!, sold: Int!, sellers: Int!, searches: Int! }
+type RunResult { found: Int!, offTopic: Int!, matched: Int! }
+
+type Query {
+  searches: [Search!]!
+  search(id: Int!): Search
+  listings(searchId: Int!): [Listing!]!
+  places(q: String!): [Place!]!
+  countries: [Country!]!
+  stats: Stats!
+}
+
+type Mutation {
+  createSearch(input: SearchInput!): Search!
+  updateSearch(id: Int!, input: SearchInput!): Search!
+  deleteSearch(id: Int!): Boolean!
+  "runs one search now; takes one to four minutes"
+  runSearch(id: Int!): RunResult!
+  "fires every enabled search in the background, returns immediately"
+  sweep: Boolean!
+}

@@ -9,9 +9,15 @@
     "preview": "vite preview"
   },
   "devDependencies": {
+    "@stylexjs/rollup-plugin": "0.19.1",
+    "@stylexjs/stylex": "0.19.1",
     "@sveltejs/vite-plugin-svelte": "^7.3.1",
     "svelte": "^5.57.1",
     "vite": "^8.3.2"
   },
-  "description": "Svelte interface: saved searches, filters and results."
+  "description": "Svelte interface: saved searches, filters and results.",
+  "dependencies": {
+    "@urql/svelte": "^5.0.0",
+    "graphql": "^16.14.2"
+  }
 }

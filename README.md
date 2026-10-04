@@ -14,29 +14,66 @@ runs produced, which is most of the value here.
 A pnpm workspace of two packages.
 
 ```
-packages/api    the watcher: marketplace adapters, advert parser, matcher, HTTP API
-packages/web    the Svelte interface
+packages/api        NestJS + GraphQL over the watcher
+  src/hunter/       the domain logic: source adapters, advert parser, matcher, geocoder
+  src/searches/     resolver, service and the column mapping
+  src/listings/
+  src/meta/         places, countries, stats
+  src/sweep/        the hourly schedule
+packages/web        Svelte interface
+  src/lib/gql.js        urql client and every document
+  src/lib/tokens.stylex.js  the palette, light and dark
+  src/lib/ui.stylex.js      shared primitives
+  src/lib/webmcp.js         the tools an agent can call
 ```
 
-`api` has **no runtime dependencies** — everything it uses is Node standard library,
-`node:sqlite` included. pnpm exists only to build `web`, whose toolchain never ships to the
-runtime. `web` builds to `packages/web/dist`, which `api` serves as its static root.
+### Three notes on the frontend stack
+
+**StyleX with Svelte.** Styles live in `<script module>` and apply through
+`stylex.attrs()`, which is the non-React API returning `{class, style}`. The official
+`@stylexjs/rollup-plugin` does the compiling; the community `vite-plugin-stylex` is stale and
+wants StyleX 0.9 with Vite 5. Two things to know: StyleX silently drops arbitrary shorthands,
+so `background` produces nothing and `backgroundColor` is required, and the plugin emits
+`stylex.css` as a standalone asset that Vite will not link, so `index.html` links it by hand.
+
+What could not survive the move verbatim were the descendant selectors. `tbody tr:hover td`
+needs a parent selector, so the hover moved onto the row itself; `tr:last-child td` moved its
+divider to the top of each cell; and `.field.changed > .label` now hands the flag to the label.
+`app.css` is down from 16 KB to under 1 KB and holds only what has no element to attach to.
+
+**WebMCP.** `src/lib/webmcp.js` registers seven tools through `navigator.modelContext`, which
+Chrome shipped in 146. `provideContext()` and `clearContext()` were removed in the March 2026
+revision, so registration is per tool and `unregisterTool` tears them down. The tools close
+over the live app state rather than holding a copy, so an agent and the person at the screen
+always see the same thing. Absent the API the module is inert.
+
+**urql.** Apollo refuses anything that could have been a simple cross-site request, so the
+client sends `apollo-require-preflight`. Without it the very first query comes back as a CSRF
+error on a same-origin call.
+
+`schema.graphql` at the root is the hand-written contract between the two. The server
+generates its own `schema.gql` from the decorators at boot; that one is not tracked.
+
+Everything under `src/hunter` is plain ESM with no framework in it, and it is where the value
+is. NestJS wraps it rather than replacing it, so the parser corrections survive intact.
 
 ## Running it locally
 
 ```bash
-node --version          # 22.5 or newer, for the built-in SQLite
+node --version              # 22.5 or newer, for the built-in SQLite
 pnpm install
-pnpm build              # compile web into packages/web/dist
-pnpm start              # http://localhost:8080
+pnpm build                  # compile both packages
+pnpm start                  # http://localhost:8080, GraphQL at /graphql
 ```
 
-While working on the interface, run both and let Vite proxy the API:
+While working, run both and let Vite proxy the API:
 
 ```bash
-pnpm start              # api on :8080
-pnpm --filter web dev   # vite on :5173
+pnpm --filter api dev       # nest watch on :8080
+pnpm --filter web dev       # vite on :5173
 ```
+
+GraphiQL is served at `/graphql` outside production.
 
 To sweep on a schedule from the command line instead of the UI:
 
@@ -55,11 +92,16 @@ it. Updating afterwards is a pull and a recreate, with no source checkout on the
 docker compose pull && docker compose up -d
 ```
 
-The image is a two-stage build: the first stage installs pnpm and compiles `web`, and the
-runtime stage keeps only `packages/api/src`, its manifest and the compiled
-`packages/web/dist`. The directory layout matches the repository, so the api resolves its
-static root the same way it does in development. It runs as the unprivileged `node` user and
-has a healthcheck on `/api/stats`.
+The image is a two-stage build. The first stage installs pnpm and compiles both packages,
+then re-resolves with `pnpm deploy --prod --legacy` so TypeScript, Vite and Svelte are
+dropped. The runtime stage keeps the compiled output and 62 MB of production dependencies
+against 214 MB in development. The directory layout matches the repository, so the api
+resolves its database and static root identically in both. It runs as the unprivileged
+`node` user, with a healthcheck that posts a GraphQL query.
+
+**This is no longer a small image.** NestJS and Apollo bring 184 packages where the previous
+server had none. That is the cost of the GraphQL API; the watcher itself still has no
+dependencies.
 
 **The package inherits the repository's visibility.** While the repo is private the Proxmox
 host needs `docker login ghcr.io` with a token that has `read:packages`. Making just the

@@ -6,8 +6,12 @@ packages/api/data/
 *.db-shm
 *.db-wal
 
-# built by `pnpm build`
+# build output
+packages/api/dist/
 packages/web/dist/
+# generated from the decorators at boot; schema.graphql at the root is the
+# hand-written contract and IS tracked
+packages/api/schema.gql
 
 .env
 .env.local

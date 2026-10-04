@@ -2,14 +2,35 @@
   "name": "api",
   "version": "1.0.0",
   "private": true,
-  "description": "The watcher: three marketplace adapters, the advert parser, the matcher and the HTTP API. No runtime dependencies.",
+  "description": "NestJS GraphQL server over the marketplace watcher: three source adapters, the advert parser, the matcher and the hourly sweep.",
   "type": "module",
-  "engines": { "node": ">=22.5" },
+  "engines": {
+    "node": ">=22.5"
+  },
   "scripts": {
-    "dev": "node --no-warnings --watch src/server.mjs",
-    "start": "node --no-warnings src/server.mjs",
-    "serve": "node --no-warnings src/serve-and-sweep.mjs",
-    "worker": "node --no-warnings src/worker.mjs",
-    "once": "node --no-warnings src/worker.mjs --once"
+    "build": "nest build",
+    "dev": "nest start --watch",
+    "start": "node --no-warnings dist/main.js",
+    "worker": "node --no-warnings src/hunter/worker.mjs",
+    "once": "node --no-warnings src/hunter/worker.mjs --once"
+  },
+  "dependencies": {
+    "@apollo/server": "^5.5.1",
+    "@as-integrations/express5": "^1.1.2",
+    "@nestjs/apollo": "^13.1.0",
+    "@nestjs/common": "^11.1.6",
+    "@nestjs/core": "^11.1.6",
+    "@nestjs/graphql": "^13.1.0",
+    "@nestjs/platform-express": "^11.1.6",
+    "@nestjs/schedule": "^6.0.1",
+    "graphql": "^16.11.0",
+    "reflect-metadata": "^0.2.2",
+    "rxjs": "^7.8.2"
+  },
+  "devDependencies": {
+    "@nestjs/cli": "^11.0.10",
+    "@nestjs/schematics": "^11.0.8",
+    "@types/node": "^24.10.1",
+    "typescript": "^5.9.3"
   }
 }

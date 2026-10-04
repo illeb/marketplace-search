@@ -1,37 +1,39 @@
-# The api package has no runtime dependencies: everything it uses is in the Node
-# standard library, node:sqlite included. pnpm appears only in the build stage,
-# to compile the web package into static files.
+# Two stages. The first installs pnpm and builds both packages; the runtime
+# stage keeps the compiled output plus only the api's production dependencies.
 
-# ---- build the web package -------------------------------------------------
-FROM node:24-alpine AS web
+# ---- build -----------------------------------------------------------------
+FROM node:24-alpine AS build
 
 RUN corepack enable
 WORKDIR /build
 
 # manifests and the lockfile first, so editing a component does not reinstall
-# the toolchain on every build
 COPY pnpm-workspace.yaml pnpm-lock.yaml package.json ./
-COPY packages/web/package.json ./packages/web/
 COPY packages/api/package.json ./packages/api/
-RUN pnpm install --frozen-lockfile --filter web
+COPY packages/web/package.json ./packages/web/
+RUN pnpm install --frozen-lockfile
 
-COPY packages/web ./packages/web
-RUN pnpm --filter web build
-# output lands at /build/packages/web/dist
+COPY packages ./packages
+RUN pnpm --filter web build && pnpm --filter api build
+
+# Re-resolve with dev dependencies stripped. NestJS and Apollo are the runtime;
+# TypeScript, Vite and Svelte are not, and they are the bulk of the install.
+# --legacy: pnpm 10 otherwise refuses to deploy a workspace that does not set
+# inject-workspace-packages, which this one has no reason to.
+RUN pnpm --filter api --prod deploy --legacy /runtime
 
 # ---- runtime ---------------------------------------------------------------
 FROM node:24-alpine AS runtime
 
 WORKDIR /app
 
-# The directory layout is kept identical to the repository so the api resolves
-# its static root the same way it does in development: ../../web/dist.
-COPY packages/api/package.json ./packages/api/
-COPY packages/api/src ./packages/api/src
-COPY --from=web /build/packages/web/dist ./packages/web/dist
+COPY --from=build /runtime/node_modules ./packages/api/node_modules
+COPY --from=build /runtime/package.json ./packages/api/
+COPY --from=build /build/packages/api/dist ./packages/api/dist
+COPY --from=build /build/packages/web/dist ./packages/web/dist
 
-# The database lives on a volume so price history survives a redeploy. It is
-# created on first run, so the directory has to be writable by the node user.
+# The layout matches the repository, so config.mjs resolves its database and
+# static root the same way in development and in the container.
 RUN mkdir -p /data && chown -R node:node /data /app
 USER node
 
@@ -44,8 +46,10 @@ ENV NODE_ENV=production \
 VOLUME ["/data"]
 EXPOSE 8080
 
-HEALTHCHECK --interval=60s --timeout=5s --start-period=15s --retries=3 \
-  CMD wget -qO- "http://127.0.0.1:${PORT}/api/stats" > /dev/null || exit 1
+HEALTHCHECK --interval=60s --timeout=5s --start-period=20s --retries=3 \
+  CMD wget -qO- --post-data='{"query":"{stats{live}}"}' \
+      --header='content-type: application/json' \
+      "http://127.0.0.1:${PORT}/graphql" > /dev/null || exit 1
 
-# one process serves the UI and runs the hourly sweep
-CMD ["node", "--no-warnings", "packages/api/src/serve-and-sweep.mjs"]
+# one process serves the UI, the GraphQL API and the hourly sweep
+CMD ["node", "--no-warnings", "packages/api/dist/main.js"]

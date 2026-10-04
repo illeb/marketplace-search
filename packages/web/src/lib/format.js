@@ -1,6 +1,6 @@
 // Rendering rules shared by the table.
 //
-// The central one: a zero or null in ram_gb, storage_gb or distance_km means
+// The central one: a zero or null in ramGb, storageGb or distanceKm means
 // the advert never said, not that the machine has none and not that the seller
 // is next door. Those read as "not stated" / "location unknown", never as 0.
 
@@ -20,7 +20,7 @@ export const percent = (p) => (p == null ? null : `${Math.round(p)}%`);
 /** Processor as the advert's words allow: "i5-8500", "Ryzen 5", or nothing. */
 export function cpuLabel(row) {
   if (!row.cpu) return null;
-  return row.cpu_num ? `${row.cpu}-${row.cpu_num}` : row.cpu;
+  return row.cpuNum ? `${row.cpu}-${row.cpuNum}` : row.cpu;
 }
 
 /**
@@ -43,13 +43,13 @@ export const threads = (row) => (row.threads && row.threads !== '\u2014' ? row.t
 /** How a row describes its drives, when it says anything at all. */
 export function storageDetail(row) {
   const bits = [];
-  if (stated(row.ssd_gb)) bits.push(`${row.ssd_gb} GB SSD`);
-  if (stated(row.hdd_gb)) bits.push(`${row.hdd_gb} GB HDD`);
+  if (stated(row.ssdGb)) bits.push(`${row.ssdGb} GB SSD`);
+  if (stated(row.hddGb)) bits.push(`${row.hddGb} GB HDD`);
   return bits.length ? bits.join(' + ') : null;
 }
 
 /** True when this row is a memory kit rather than a machine. */
-export const isMemory = (row) => stated(row.mem_total) || stated(row.mem_sticks);
+export const isMemory = (row) => stated(row.memTotal) || stated(row.mem_sticks);
 
 /** True when this row carries any machine specification at all. */
 export const isMachine = (row) => !isMemory(row) && !!(row.family || row.cpu || row.chassis);
@@ -60,13 +60,13 @@ export const isMachine = (row) => !isMemory(row) && !!(row.family || row.cpu || 
  * memory and its storage. Anything with no specifications to state passes.
  */
 export function specsStated(row) {
-  if (isMemory(row)) return stated(row.mem_total);
-  if (isMachine(row)) return stated(row.ram_gb) && stated(row.storage_gb);
+  if (isMemory(row)) return stated(row.memTotal);
+  if (isMachine(row)) return stated(row.ramGb) && stated(row.storageGb);
   return true;
 }
 
 /** Matched today. Falls back to the age when the server does not say. */
-export const isNew = (row) => (row.is_new != null ? !!row.is_new : row.age_days === 0);
+export const isNew = (row) => (row.isNew != null ? !!row.isNew : row.ageDays === 0);
 
 export function ageLabel(days) {
   if (days == null) return 'seen recently';
@@ -93,7 +93,7 @@ export function timeAgo(sqlTimestamp) {
 export function sellerTone(row) {
   const n = row.reviews ?? 0;
   if (n < 3) return 'bad';
-  if ((row.positive_pct != null && row.positive_pct < 90) || (row.reports ?? 0) >= 50 || n < 5)
+  if ((row.positivePct != null && row.positivePct < 90) || (row.reports ?? 0) >= 50 || n < 5)
     return 'warn';
   return 'good';
 }

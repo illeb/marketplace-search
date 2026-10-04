@@ -1,3 +1,173 @@
+<script module>
+  import * as stylex from '@stylexjs/stylex';
+  import { t } from '../lib/tokens.stylex.js';
+  import { ui } from '../lib/ui.stylex.js';
+
+  // Two rules here could not survive the move verbatim. `tbody tr:hover td`
+  // needs a parent selector, so the hover sits on the row itself and the cells
+  // stay transparent. `tr:last-child td` needed :last-child reaching into a
+  // child, so the divider moved to the top of each cell instead of the bottom.
+  const s = stylex.create({
+    wrap: {
+      backgroundColor: { default: t.surface, '@media (max-width: 840px)': 'transparent' },
+      borderWidth: { default: 1, '@media (max-width: 840px)': 0 },
+      borderStyle: 'solid',
+      borderColor: t.line,
+      borderRadius: t.radius,
+      overflowX: { default: 'auto', '@media (max-width: 840px)': 'visible' },
+    },
+    table: {
+      width: { default: '100%', '@media (max-width: 840px)': 'auto' },
+      borderCollapse: 'collapse',
+      fontSize: 13,
+      display: { default: 'table', '@media (max-width: 840px)': 'block' },
+    },
+    thead: { display: { default: 'table-header-group', '@media (max-width: 840px)': 'none' } },
+    tbody: { display: { default: 'table-row-group', '@media (max-width: 840px)': 'block' } },
+    th: {
+      textAlign: 'left',
+      fontSize: 11,
+      fontWeight: 700,
+      letterSpacing: '0.05em',
+      textTransform: 'uppercase',
+      color: t.muted,
+      padding: 0,
+      backgroundColor: t.surface2,
+      borderBottomWidth: 1,
+      borderBottomStyle: 'solid',
+      borderBottomColor: t.line,
+      whiteSpace: 'nowrap',
+    },
+    thPlain: { paddingBlock: 9, paddingInline: 12 },
+    sorter: {
+      width: '100%',
+      font: 'inherit',
+      textTransform: 'inherit',
+      letterSpacing: 'inherit',
+      textAlign: 'left',
+      display: 'flex',
+      alignItems: 'center',
+      gap: 6,
+      cursor: 'pointer',
+      borderWidth: 0,
+      borderRadius: 0,
+      paddingBlock: 9,
+      paddingInline: 12,
+      backgroundColor: { default: 'transparent', ':hover': t.surface3 },
+      color: { default: 'inherit', ':hover': t.ink },
+    },
+    sorterOn: { color: { default: t.accentInk, ':hover': t.accentInk } },
+    arrow: { fontSize: 9, opacity: 0.75 },
+
+    tr: {
+      display: { default: 'table-row', '@media (max-width: 840px)': 'block' },
+      backgroundColor: { default: 'transparent', ':hover': t.surface2 },
+      borderWidth: { default: 0, '@media (max-width: 840px)': 1 },
+      borderStyle: 'solid',
+      borderColor: t.line,
+      borderRadius: { default: 0, '@media (max-width: 840px)': t.radius },
+      marginBlockEnd: { default: 0, '@media (max-width: 840px)': 8 },
+      paddingBlock: { default: 0, '@media (max-width: 840px)': 5 },
+    },
+    trSold: { opacity: 0.55 },
+    td: {
+      display: { default: 'table-cell', '@media (max-width: 840px)': 'block' },
+      position: 'relative',
+      verticalAlign: 'top',
+      paddingBlock: { default: 11, '@media (max-width: 840px)': 7, '@media (max-width: 460px)': 6 },
+      paddingInlineStart: { default: 12, '@media (max-width: 840px)': 94, '@media (max-width: 460px)': 12 },
+      paddingInlineEnd: 12,
+      borderTopWidth: { default: 1, '@media (max-width: 840px)': 0 },
+      borderTopStyle: 'solid',
+      borderTopColor: t.line,
+      '::before': {
+        content: 'attr(data-label)',
+        position: { default: 'static', '@media (max-width: 840px)': 'absolute', '@media (max-width: 460px)': 'static' },
+        display: { default: 'none', '@media (max-width: 840px)': 'block' },
+        insetInlineStart: 12,
+        top: 9,
+        width: { default: 74, '@media (max-width: 460px)': 'auto' },
+        marginBlockEnd: { default: 0, '@media (max-width: 460px)': 3 },
+        fontSize: 10,
+        fontWeight: 700,
+        textTransform: 'uppercase',
+        letterSpacing: '0.05em',
+        color: t.faint,
+      },
+    },
+    cPrice: { whiteSpace: 'nowrap' },
+    price: { fontSize: 17, fontWeight: 700 },
+    was: { display: 'block', fontSize: 11, color: t.muted, textDecoration: 'line-through' },
+
+    cMachine: {
+      minWidth: { default: 210, '@media (max-width: 840px)': 0 },
+      maxWidth: { default: 420, '@media (max-width: 840px)': 'none' },
+    },
+    title: {
+      fontWeight: 600,
+      lineHeight: 1.3,
+      color: { default: t.ink, ':hover': t.accentInk },
+      textDecoration: { default: 'none', ':hover': 'underline' },
+    },
+    chips: { display: 'flex', flexWrap: 'wrap', gap: 4, marginBlockStart: 5 },
+    chip: {
+      fontSize: 10,
+      fontWeight: 700,
+      textTransform: 'uppercase',
+      letterSpacing: '0.04em',
+      paddingBlock: 2,
+      paddingInline: 6,
+      borderRadius: 4,
+      backgroundColor: t.surface2,
+      color: t.muted,
+      borderWidth: 1,
+      borderStyle: 'solid',
+      borderColor: t.line,
+    },
+    chipNew: { backgroundColor: t.good, color: '#fff', borderColor: 'transparent' },
+    chipSold: { backgroundColor: t.surface3, color: t.ink },
+    chipCaution: {
+      backgroundColor: t.warnWash,
+      color: t.warn,
+      borderColor: t.warn,
+      textTransform: 'none',
+      letterSpacing: 0,
+      fontSize: 10.5,
+    },
+
+    cSpec: { minWidth: { default: 150, '@media (max-width: 840px)': 0 } },
+    line: { display: 'flex', gap: 7, alignItems: 'baseline' },
+    k: {
+      fontSize: 10,
+      fontWeight: 700,
+      textTransform: 'uppercase',
+      color: t.faint,
+      minWidth: 38,
+      flexGrow: 0, flexShrink: 0,
+    },
+
+    cSeller: { minWidth: { default: 0, '@media (max-width: 840px)': 0 } },
+    trust: { lineHeight: 1.3 },
+    trustB: { display: 'block', fontFamily: t.mono, fontVariantNumeric: 'tabular-nums' },
+    trustGood: { color: t.good },
+    trustWarn: { color: t.warn },
+    trustBad: { color: t.bad },
+    trustPct: { fontSize: 11.5, color: t.muted },
+
+    cWhere: { minWidth: { default: 120, '@media (max-width: 840px)': 0 } },
+    source: {
+      fontSize: 11,
+      fontWeight: 700,
+      textTransform: 'uppercase',
+      letterSpacing: '0.05em',
+      color: t.accentInk,
+    },
+    hintTop: { marginBlockStart: 3 },
+  });
+
+  const TRUST = { good: s.trustGood, warn: s.trustWarn, bad: s.trustBad };
+</script>
+
 <script>
   import {
     money, gb, distance, percent, cpuLabel, storageDetail,
@@ -37,86 +207,87 @@
 </script>
 
 {#snippet sortButton(label, key)}
-  <button type="button" class="sorter" class:on={sort.key === key} onclick={() => setSort(key)}>
-    {label}<span class="arrow" aria-hidden="true">{sort.key === key ? (sort.dir === 'asc' ? '▲' : '▼') : '⇅'}</span>
+  <button type="button" onclick={() => setSort(key)}
+    {...stylex.attrs(s.sorter, sort.key === key && s.sorterOn)}>
+    {label}<span aria-hidden="true" {...stylex.attrs(s.arrow)}>{sort.key === key ? (sort.dir === 'asc' ? '▲' : '▼') : '⇅'}</span>
   </button>
 {/snippet}
 
 {#snippet notStated(text = 'not stated')}
-  <span class="unstated">{text}</span>
+  <span {...stylex.attrs(ui.unstated)}>{text}</span>
 {/snippet}
 
-<div class="wrap">
-  <table class="results">
-    <thead>
+<div {...stylex.attrs(s.wrap)}>
+  <table {...stylex.attrs(s.table)}>
+    <thead {...stylex.attrs(s.thead)}>
       <tr>
-        <th scope="col" aria-sort={ariaSort('price')}>{@render sortButton('Price', 'price')}</th>
-        <th scope="col" class="plain">Machine</th>
-        <th scope="col" aria-sort={ariaSort('year')}>{@render sortButton('Specification', 'year')}</th>
-        <th scope="col" aria-sort={ariaSort('reviews')}>{@render sortButton('Seller', 'reviews')}</th>
-        <th scope="col" class="plain">Where</th>
+        <th scope="col" {...stylex.attrs(s.th)} aria-sort={ariaSort('price')}>{@render sortButton('Price', 'price')}</th>
+        <th scope="col" {...stylex.attrs(s.th, s.thPlain)}>Machine</th>
+        <th scope="col" {...stylex.attrs(s.th)} aria-sort={ariaSort('year')}>{@render sortButton('Specification', 'year')}</th>
+        <th scope="col" {...stylex.attrs(s.th)} aria-sort={ariaSort('reviews')}>{@render sortButton('Seller', 'reviews')}</th>
+        <th scope="col" {...stylex.attrs(s.th, s.thPlain)}>Where</th>
       </tr>
     </thead>
-    <tbody>
+    <tbody {...stylex.attrs(s.tbody)}>
       {#each sorted as r (r.id)}
-        <tr class:sold={!!r.sold_at}>
-          <td data-label="Price" class="c-price">
-            <span class="price mono">{money(r.price)}</span>
-            {#if stated(r.price_max) && r.price_max > r.price}
-              <span class="was">was {money(r.price_max)}</span>
+        <tr {...stylex.attrs(s.tr, !!r.soldAt && s.trSold)}>
+          <td data-label="Price" {...stylex.attrs(s.td, s.cPrice)}>
+            <span {...stylex.attrs(ui.mono, s.price)}>{money(r.price)}</span>
+            {#if stated(r.priceMax) && r.priceMax > r.price}
+              <span {...stylex.attrs(s.was)}>was {money(r.priceMax)}</span>
             {/if}
           </td>
 
-          <td data-label="Machine" class="c-machine">
-            <a class="title" href={r.url} target="_blank" rel="noopener noreferrer">
+          <td data-label="Machine" {...stylex.attrs(s.td, s.cMachine)}>
+            <a href={r.url} target="_blank" rel="noopener noreferrer" {...stylex.attrs(s.title)}>
               {r.title || '(untitled advert)'}
             </a>
-            <div class="chips">
-              {#if isNew(r) && !r.sold_at}<span class="chip new">new today</span>{/if}
-              {#if r.sold_at}<span class="chip sold-chip">sold</span>{/if}
-              {#if r.chassis && isMachine(r)}<span class="chip">{r.chassis}</span>{/if}
-              {#if r.vendor}<span class="chip">{r.vendor}</span>{/if}
-              {#if modelLabel(r)}<span class="chip">{modelLabel(r)}</span>{/if}
-              {#each r.cautions ?? [] as c (c)}<span class="chip caution">{c}</span>{/each}
+            <div {...stylex.attrs(s.chips)}>
+              {#if isNew(r) && !r.soldAt}<span {...stylex.attrs(s.chip, s.chipNew)}>new today</span>{/if}
+              {#if r.soldAt}<span {...stylex.attrs(s.chip, s.chipSold)}>sold</span>{/if}
+              {#if r.chassis && isMachine(r)}<span {...stylex.attrs(s.chip)}>{r.chassis}</span>{/if}
+              {#if r.vendor}<span {...stylex.attrs(s.chip)}>{r.vendor}</span>{/if}
+              {#if modelLabel(r)}<span {...stylex.attrs(s.chip)}>{modelLabel(r)}</span>{/if}
+              {#each r.cautions ?? [] as c (c)}<span {...stylex.attrs(s.chip, s.chipCaution)}>{c}</span>{/each}
             </div>
-            <div class="hint">{ageLabel(r.age_days)}</div>
+            <div {...stylex.attrs(ui.hint, s.hintTop)}>{ageLabel(r.ageDays)}</div>
           </td>
 
-          <td data-label="Specification" class="c-spec">
+          <td data-label="Specification" {...stylex.attrs(s.td, s.cSpec)}>
             {#if isMemory(r)}
-              <div class="line">
-                <span class="k">Kit</span>
-                {#if stated(r.mem_sticks) && stated(r.mem_per)}
-                  <span class="mono">{r.mem_sticks} × {r.mem_per} GB</span>
+              <div {...stylex.attrs(s.line)}>
+                <span {...stylex.attrs(s.k)}>Kit</span>
+                {#if stated(r.memSticks) && stated(r.memPer)}
+                  <span {...stylex.attrs(ui.mono)}>{r.memSticks} × {r.memPer} GB</span>
                 {:else}{@render notStated()}{/if}
               </div>
-              <div class="line">
-                <span class="k">Total</span>
-                {#if gb(r.mem_total)}<span class="mono">{gb(r.mem_total)}</span>{:else}{@render notStated()}{/if}
+              <div {...stylex.attrs(s.line)}>
+                <span {...stylex.attrs(s.k)}>Total</span>
+                {#if gb(r.memTotal)}<span {...stylex.attrs(ui.mono)}>{gb(r.memTotal)}</span>{:else}{@render notStated()}{/if}
               </div>
-              <div class="line">
-                <span class="k">Speed</span>
-                {#if stated(r.mem_speed)}<span class="mono">{r.mem_speed} MHz</span>{:else}{@render notStated()}{/if}
+              <div {...stylex.attrs(s.line)}>
+                <span {...stylex.attrs(s.k)}>Speed</span>
+                {#if stated(r.memSpeed)}<span {...stylex.attrs(ui.mono)}>{r.memSpeed} MHz</span>{:else}{@render notStated()}{/if}
               </div>
             {:else if isMachine(r)}
-              <div class="line">
-                <span class="k">CPU</span>
+              <div {...stylex.attrs(s.line)}>
+                <span {...stylex.attrs(s.k)}>CPU</span>
                 {#if cpuLabel(r)}
-                  <span class="mono">{cpuLabel(r)}</span>
+                  <span {...stylex.attrs(ui.mono)}>{cpuLabel(r)}</span>
                 {:else}{@render notStated()}{/if}
               </div>
-              <div class="line">
-                <span class="k">RAM</span>
-                {#if gb(r.ram_gb)}<span class="mono">{gb(r.ram_gb)}</span>{:else}{@render notStated()}{/if}
+              <div {...stylex.attrs(s.line)}>
+                <span {...stylex.attrs(s.k)}>RAM</span>
+                {#if gb(r.ramGb)}<span {...stylex.attrs(ui.mono)}>{gb(r.ramGb)}</span>{:else}{@render notStated()}{/if}
               </div>
-              <div class="line">
-                <span class="k">Disk</span>
-                {#if gb(r.storage_gb)}
-                  <span class="mono">{gb(r.storage_gb)}</span>
+              <div {...stylex.attrs(s.line)}>
+                <span {...stylex.attrs(s.k)}>Disk</span>
+                {#if gb(r.storageGb)}
+                  <span {...stylex.attrs(ui.mono)}>{gb(r.storageGb)}</span>
                 {:else}{@render notStated()}{/if}
               </div>
               {#if storageDetail(r) || stated(r.year) || stated(r.generation) || threads(r)}
-                <div class="hint">
+                <div {...stylex.attrs(ui.hint, s.hintTop)}>
                   {[
                     storageDetail(r),
                     stated(r.year) ? `${r.year} model` : null,
@@ -126,36 +297,36 @@
                 </div>
               {/if}
             {:else}
-              <div class="line">
-                <span class="k">Condition</span>
+              <div {...stylex.attrs(s.line)}>
+                <span {...stylex.attrs(s.k)}>Condition</span>
                 {#if r.condition}<span>{r.condition}</span>{:else}{@render notStated()}{/if}
               </div>
             {/if}
           </td>
 
-          <td data-label="Seller" class="c-seller">
-            <div class="trust t-{sellerTone(r)}">
-              <b>{r.reviews ?? '?'} review{r.reviews === 1 ? '' : 's'}</b>
-              {#if percent(r.positive_pct)}
-                <span>{percent(r.positive_pct)} positive</span>
+          <td data-label="Seller" {...stylex.attrs(s.td, s.cSeller)}>
+            <div {...stylex.attrs(s.trust)}>
+              <b {...stylex.attrs(s.trustB, TRUST[sellerTone(r)])}>{r.reviews ?? '?'} review{r.reviews === 1 ? '' : 's'}</b>
+              {#if percent(r.positivePct)}
+                <span {...stylex.attrs(s.trustPct)}>{percent(r.positivePct)} positive</span>
               {:else}
-                <span class="unstated">no score</span>
+                <span {...stylex.attrs(ui.unstated)}>no score</span>
               {/if}
             </div>
-            {#if stated(r.reports)}<div class="hint">{r.reports} reports</div>{/if}
+            {#if stated(r.reports)}<div {...stylex.attrs(ui.hint, s.hintTop)}>{r.reports} reports</div>{/if}
           </td>
 
-          <td data-label="Where" class="c-where">
-            <div class="source">{r.source}</div>
+          <td data-label="Where" {...stylex.attrs(s.td, s.cWhere)}>
+            <div {...stylex.attrs(s.source)}>{r.source}</div>
             {#if where(r)}
               <div>{where(r)}</div>
             {:else}
               <div>{@render notStated('location unknown')}</div>
             {/if}
-            {#if distance(r.distance_km)}
-              <div class="hint">{distance(r.distance_km)} away</div>
+            {#if distance(r.distanceKm)}
+              <div {...stylex.attrs(ui.hint, s.hintTop)}>{distance(r.distanceKm)} away</div>
             {:else if hasCentre && where(r)}
-              <div class="hint">{@render notStated('distance unknown')}</div>
+              <div {...stylex.attrs(ui.hint, s.hintTop)}>{@render notStated('distance unknown')}</div>
             {/if}
           </td>
         </tr>
@@ -163,153 +334,3 @@
     </tbody>
   </table>
 </div>
-
-<style>
-  .wrap {
-    background: var(--surface);
-    border: 1px solid var(--line);
-    border-radius: var(--radius);
-    overflow-x: auto;
-  }
-
-  table { width: 100%; border-collapse: collapse; font-size: 13px; }
-
-  th {
-    text-align: left;
-    font-size: 11px;
-    font-weight: 700;
-    letter-spacing: 0.05em;
-    text-transform: uppercase;
-    color: var(--muted);
-    padding: 0;
-    background: var(--surface-2);
-    border-bottom: 1px solid var(--line);
-    white-space: nowrap;
-  }
-  th.plain { padding: 9px 12px; }
-
-  .sorter {
-    width: 100%;
-    border: 0;
-    border-radius: 0;
-    background: transparent;
-    color: inherit;
-    font: inherit;
-    text-transform: inherit;
-    letter-spacing: inherit;
-    text-align: left;
-    padding: 9px 12px;
-    display: flex;
-    align-items: center;
-    gap: 6px;
-  }
-  .sorter:hover { color: var(--ink); background: var(--surface-3); border-color: transparent; }
-  .sorter.on { color: var(--accent-ink); }
-  .arrow { font-size: 9px; opacity: 0.75; }
-
-  td { padding: 11px 12px; border-bottom: 1px solid var(--line); vertical-align: top; }
-  tbody tr:last-child td { border-bottom: 0; }
-  tbody tr:hover td { background: var(--surface-2); }
-  tr.sold td { opacity: 0.55; }
-
-  .c-price { white-space: nowrap; }
-  .price { font-size: 17px; font-weight: 700; }
-  .was { display: block; font-size: 11px; color: var(--muted); text-decoration: line-through; }
-
-  .c-machine { min-width: 210px; max-width: 420px; }
-  .title { font-weight: 600; color: var(--ink); text-decoration: none; line-height: 1.3; }
-  .title:hover { color: var(--accent-ink); text-decoration: underline; }
-
-  .chips { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 5px; }
-  .chip {
-    font-size: 10px;
-    font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: 0.04em;
-    padding: 2px 6px;
-    border-radius: 4px;
-    background: var(--surface-2);
-    color: var(--muted);
-    border: 1px solid var(--line);
-  }
-  .chip.new { background: var(--good); color: #fff; border-color: transparent; }
-  .chip.sold-chip { background: var(--surface-3); color: var(--ink); }
-  .chip.caution {
-    background: var(--warn-wash);
-    color: var(--warn);
-    border-color: var(--warn);
-    text-transform: none;
-    letter-spacing: 0;
-    font-size: 10.5px;
-  }
-
-  .c-spec { min-width: 150px; }
-  .line { display: flex; gap: 7px; align-items: baseline; }
-  .k {
-    font-size: 10px;
-    font-weight: 700;
-    text-transform: uppercase;
-    color: var(--faint);
-    min-width: 38px;
-    flex: none;
-  }
-
-  .trust { line-height: 1.3; }
-  .trust b { display: block; font-family: var(--mono); font-variant-numeric: tabular-nums; }
-  .trust span { font-size: 11.5px; color: var(--muted); }
-  .t-good b { color: var(--good); }
-  .t-warn b { color: var(--warn); }
-  .t-bad b { color: var(--bad); }
-
-  .c-where { min-width: 120px; }
-  .source {
-    font-size: 11px;
-    font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-    color: var(--accent-ink);
-  }
-
-  .hint { margin-top: 3px; }
-
-  /* Below the point where five columns stop fitting, each row becomes a card
-     and the column headings move into the cells. */
-  @media (max-width: 840px) {
-    thead { display: none; }
-    table, tbody, tr, td { display: block; width: auto; }
-    .wrap { background: transparent; border: 0; overflow-x: visible; }
-    tbody tr {
-      background: var(--surface);
-      border: 1px solid var(--line);
-      border-radius: var(--radius);
-      margin-bottom: 8px;
-      padding: 5px 0;
-    }
-    tbody tr:hover td { background: transparent; }
-    td {
-      position: relative;
-      border-bottom: 0;
-      padding: 7px 12px 7px 94px;
-      min-height: 0;
-    }
-    td::before {
-      content: attr(data-label);
-      position: absolute;
-      left: 12px;
-      top: 9px;
-      width: 74px;
-      font-size: 10px;
-      font-weight: 700;
-      text-transform: uppercase;
-      letter-spacing: 0.05em;
-      color: var(--faint);
-    }
-    .c-machine, .c-spec, .c-seller, .c-where { max-width: none; min-width: 0; }
-  }
-
-  @media (max-width: 460px) {
-    td { padding: 6px 12px; }
-    td::before { position: static; display: block; width: auto; margin-bottom: 3px; }
-  }
-
-</style>

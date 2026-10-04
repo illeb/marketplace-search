@@ -1,9 +1,9 @@
 export const CONFIG = {
   port: Number(process.env.PORT || 8080),
-  dbPath: process.env.DB_PATH || new URL('../data/hunter.db', import.meta.url).pathname,
+  dbPath: process.env.DB_PATH || new URL('../../data/hunter.db', import.meta.url).pathname,
   // Static root. In the workspace the web package builds next door; in the
   // image the compiled files are copied in and WEB_ROOT points at them.
-  webRoot: process.env.WEB_ROOT || new URL('../../web/dist/', import.meta.url).pathname,
+  webRoot: process.env.WEB_ROOT || new URL('../../../web/dist/', import.meta.url).pathname,
   // how often the worker sweeps every enabled search
   sweepMinutes: Number(process.env.SWEEP_MINUTES || 60),
   // a listing missing from this many consecutive sweeps is treated as sold
