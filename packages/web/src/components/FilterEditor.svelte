@@ -89,8 +89,8 @@
   const changedLabel = (...fs) => fs.some((f) => marks.has(f)) && s.labelChanged;
 
   const ENABLED = [
-    { value: 1, label: 'Enabled' },
-    { value: 0, label: 'Paused' },
+    { value: true, label: 'Enabled' },
+    { value: false, label: 'Paused' },
   ];
 
   // Filters are read far less often than results, so the panel folds away. The
@@ -205,13 +205,13 @@
       </label>
 
       {#if draft.radiusKm > 0}
-        <label class="field check {mark('includeUnlocated')}">
-          <span {...stylex.attrs(ui.label, changedLabel('countries'))}>Adverts with no location</span>
+        <label {...stylex.attrs(ui.field)}>
+          <span {...stylex.attrs(ui.label, changedLabel('includeUnlocated'))}>Adverts with no location</span>
           <span {...stylex.attrs(s.checkrow)}>
             <input
               type="checkbox"
-              checked={!!draft.includeUnlocated}
-              onchange={(e) => (draft.includeUnlocated = e.currentTarget.checked ? 1 : 0)}
+              checked={draft.includeUnlocated}
+              onchange={(e) => (draft.includeUnlocated = e.currentTarget.checked)}
             />
             <span>Keep them anyway</span>
           </span>
@@ -235,7 +235,7 @@
     </div>
   </fieldset>
 
-  {#if draft.kind === 'computer'}
+  {#if draft.kind === 'COMPUTER'}
     <fieldset {...stylex.attrs(s.fieldset)}>
       <legend {...stylex.attrs(s.legend)}>Machine</legend>
       <div {...stylex.attrs(s.grid)}>
@@ -284,7 +284,7 @@
         </label>
       </div>
     </fieldset>
-  {:else if draft.kind === 'memory'}
+  {:else if draft.kind === 'MEMORY'}
     <fieldset {...stylex.attrs(s.fieldset)}>
       <legend {...stylex.attrs(s.legend)}>Memory</legend>
       <div {...stylex.attrs(s.grid)}>
