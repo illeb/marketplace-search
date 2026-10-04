@@ -93,6 +93,42 @@ CREATE INDEX IF NOT EXISTS idx_listings_sold ON listings(sold_at);
 CREATE INDEX IF NOT EXISTS idx_matches_search ON matches(search_id);
 `);
 
+/* ---- migrations ----------------------------------------------------------
+ * Columns added after the first release. `CREATE TABLE IF NOT EXISTS` only
+ * builds a table that is absent; it never widens one that already exists, so a
+ * database from an older build would be missing these forever. Each ALTER is
+ * guarded by the live column list, which makes this idempotent and leaves a
+ * fresh container and an upgraded one identical.
+ *
+ * These were applied by hand during development and never committed, so the
+ * first real deployment came up without radius_km and could not save a search.
+ * ------------------------------------------------------------------------ */
+const columnsOf = (table) => db.prepare(`PRAGMA table_info(${table})`).all().map((c) => c.name);
+const addColumn = (table, name, decl) => {
+  if (!columnsOf(table).includes(name)) db.exec(`ALTER TABLE ${table} ADD COLUMN ${name} ${decl}`);
+};
+
+// the launch-year floor, the one age limit that holds for Intel and AMD alike
+addColumn('searches', 'min_year', 'INTEGER DEFAULT 0');
+addColumn('searches', 'vendor', "TEXT DEFAULT ''");
+// distance filtering
+addColumn('searches', 'radius_km', 'INTEGER DEFAULT 0');
+addColumn('searches', 'include_unlocated', 'INTEGER DEFAULT 1');
+addColumn('listings', 'lat', 'REAL');
+addColumn('listings', 'lon', 'REAL');
+// the parsed launch year of a machine
+addColumn('specs', 'year', 'INTEGER');
+
+// Town name -> coordinates. Only Wallapop returns a position, so a radius
+// depends on geocoding the town once and keeping it.
+db.exec(`
+CREATE TABLE IF NOT EXISTS geocache (
+  key TEXT PRIMARY KEY,          -- "city|country", lower case
+  lat REAL, lon REAL,            -- null when the geocoder found nothing
+  fetched_at TEXT DEFAULT (datetime('now'))
+);
+`);
+
 export function upsertListing(rec) {
   const existing = db.prepare('SELECT id, price FROM listings WHERE source=? AND source_id=?')
     .get(rec.source, String(rec.sourceId));
