@@ -1,0 +1,10 @@
+# Build from this checkout rather than pulling the published image.
+#   docker compose -f docker-compose.yml -f docker-compose.build.yml up -d --build
+
+services:
+  hunter:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: marketplace-search:local
+    pull_policy: never

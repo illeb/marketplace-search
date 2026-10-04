@@ -1,0 +1,40 @@
+# Arcane stack. Pulls the image built by .github/workflows/publish.yml, so
+# updating is `docker compose pull && docker compose up -d` with no source on
+# the host. To build from a local checkout instead, use docker-compose.build.yml.
+
+services:
+  hunter:
+    image: ghcr.io/illeb/marketplace-search:latest
+    container_name: marketplace-hunter
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    volumes:
+      # price history and saved searches survive a redeploy
+      - hunter-data:/data
+    environment:
+      TZ: Europe/Rome
+      PORT: "8080"
+      DB_PATH: /data/hunter.db
+      # every enabled search is swept this often
+      SWEEP_MINUTES: "60"
+      MISSES_BEFORE_SOLD: "2"
+      # Vinted rate-limits; raise these only if it stops refusing sessions
+      VINTED_HOST: vinted.it
+      VINTED_ROTATE_EVERY: "10"
+      VINTED_MAX_DETAILS: "40"
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:8080/api/stats"]
+      interval: 60s
+      timeout: 5s
+      start_period: 15s
+      retries: 3
+    # it talks to three marketplaces and a geocoder, nothing talks to it
+    security_opt:
+      - no-new-privileges:true
+    logging:
+      driver: json-file
+      options: { max-size: "10m", max-file: "3" }
+
+volumes:
+  hunter-data:

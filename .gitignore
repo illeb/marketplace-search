@@ -1,0 +1,16 @@
+node_modules/
+
+# the local database is personal data and 8 MB of it; the container keeps its
+# own on a volume
+data/
+*.db
+*.db-shm
+*.db-wal
+
+# built by `npm run ui:build`, and by the Dockerfile's ui stage
+public/
+
+.env
+.env.local
+*.log
+.DS_Store

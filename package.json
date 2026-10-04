@@ -1,0 +1,16 @@
+{
+  "name": "marketplace-hunter",
+  "version": "1.0.0",
+  "description": "Watches Subito, Wallapop and Vinted for used business desktops and parts, normalises the specs, scores the sellers and keeps price history.",
+  "type": "module",
+  "engines": {
+    "node": ">=22.5"
+  },
+  "scripts": {
+    "start": "node --no-warnings src/server.mjs",
+    "worker": "node --no-warnings src/worker.mjs",
+    "once": "node --no-warnings src/worker.mjs --once",
+    "ui:dev": "npm --prefix frontend run dev",
+    "ui:build": "npm --prefix frontend run build"
+  }
+}

@@ -1,0 +1,19 @@
+# the image builds the frontend itself
+node_modules
+frontend/node_modules
+frontend/dist
+
+# built output is produced in the ui stage, never copied from the host
+public
+
+# local database and its write-ahead log; the container uses a volume
+data
+
+.git
+.github
+.env
+.env.*
+*.log
+.DS_Store
+README.md
+docker-compose*.yml
