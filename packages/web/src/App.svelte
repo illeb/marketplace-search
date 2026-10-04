@@ -255,6 +255,8 @@
         const updated = await api.updateSearch(selectedId, body);
         searches = searches.map((s) => (s.id === updated.id ? updated : s));
         drafts[updated.id] = toDraft(updated);
+        // the server re-decided the matches against the new filters
+        await Promise.all([loadRows(updated.id, { force: true }), refreshSearches()]);
       }
     } catch (e) {
       error = `Save failed: ${e.message}`;

@@ -1,6 +1,6 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { db } from '../hunter/db.mjs';
-import { runSearch, sweep } from '../hunter/worker.mjs';
+import { runSearch, sweep, refilter } from '../hunter/worker.mjs';
 import { Search, SearchInput, SearchKind, Vendor, RunResult } from './search.model.js';
 
 /** The database keeps csv strings and snake_case; the schema wants arrays and
@@ -114,6 +114,13 @@ export class SearchesService {
     if (names.length) {
       db.prepare(`UPDATE searches SET ${names.map((n) => `${n}=?`).join(',')} WHERE id=?`)
         .run(...names.map((n) => cols[n]), id);
+
+      // Re-decide the matches against what is already stored. Without this a
+      // changed filter does nothing visible until the next sweep, which reads
+      // three marketplaces and takes minutes, so the filter looks broken.
+      // Roughly 170 ms over 3,600 listings, and no network.
+      const row = db.prepare('SELECT * FROM searches WHERE id=?').get(id);
+      if (row) refilter(row);
     }
     return this.getOrThrow(id);
   }

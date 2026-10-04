@@ -160,3 +160,44 @@ if (import.meta.url === `file://${process.argv[1]}`) {
     setInterval(() => sweep().catch(e => log('sweep failed:', e.message)), CONFIG.sweepMinutes * 60_000);
   }
 }
+
+/**
+ * Re-decide which stored listings a search matches, without touching the
+ * network. Changing a filter used to do nothing visible until the next sweep,
+ * which reads three marketplaces and takes minutes — so a saved filter looked
+ * broken.
+ *
+ * Everything needed is already in the database: the advert text, the seller's
+ * reputation and the coordinates. The listing is re-parsed rather than read
+ * from the specs table because the parse depends on the search's kind, and the
+ * kind is one of the things being changed.
+ */
+export function refilter(search) {
+  const terms = termTokens(search.query);
+  const rows = db.prepare(`
+    SELECT l.*, s.reviews, s.positive_pct AS positivePct, s.reports
+    FROM listings l
+    LEFT JOIN sellers s ON s.source = l.source AND s.seller_id = l.seller_id
+    WHERE l.sold_at IS NULL`).all();
+
+  const add = db.prepare('INSERT OR IGNORE INTO matches (search_id, listing_id) VALUES (?,?)');
+  const drop = db.prepare('DELETE FROM matches WHERE search_id=? AND listing_id=?');
+  const had = new Set(
+    db.prepare('SELECT listing_id FROM matches WHERE search_id=?').all(search.id)
+      .map((r) => r.listing_id),
+  );
+
+  let matched = 0;
+  for (const r of rows) {
+    let ok = isRelevant(terms, r.title, r.description);
+    if (ok) {
+      const spec = parseListing(r.title, r.description, search.kind);
+      const seller = r.reviews == null ? null
+        : { reviews: r.reviews, positivePct: r.positivePct, reports: r.reports };
+      ok = evaluate(search, r, spec, seller).ok;
+    }
+    if (ok) { matched++; if (!had.has(r.id)) add.run(search.id, r.id); }
+    else if (had.has(r.id)) drop.run(search.id, r.id);
+  }
+  return { considered: rows.length, matched };
+}

@@ -260,6 +260,22 @@ no town, so a radius that silently dropped them would delete Vinted from the sea
 | 150 km | 586 | 34 |
 | 400 km | 754 | 202 |
 
+## Changing a filter
+
+Saving a filter re-decides the matches immediately, against what is already
+stored, with no network. Everything needed is in the database: the advert text,
+the seller's reputation and the coordinates. About 170 ms over 3,600 listings.
+
+Without it a changed filter did nothing visible until the next sweep, which
+reads three marketplaces and takes minutes, so a saved filter looked broken. The
+listing is re-parsed rather than read back from the specs table, because the
+parse depends on the search's kind and the kind is one of the things you can
+change.
+
+This works in both directions. Tightening drops listings straight away;
+loosening recovers any stored listing that passes the relevance gate and the new
+filters, even one first fetched for a different search.
+
 ## Sold detection
 
 A listing that disappears from a search for `MISSES_BEFORE_SOLD` consecutive sweeps is
