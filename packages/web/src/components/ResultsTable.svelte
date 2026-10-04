@@ -67,33 +67,45 @@
       borderColor: t.line,
       borderRadius: { default: 0, '@media (max-width: 840px)': t.radius },
       marginBlockEnd: { default: 0, '@media (max-width: 840px)': 8 },
-      paddingBlock: { default: 0, '@media (max-width: 840px)': 5 },
+      paddingBlock: { default: 0, '@media (max-width: 840px)': 7 },
+      // anchors the floated price
+      position: { default: 'static', '@media (max-width: 840px)': 'relative' },
     },
     trSold: { opacity: 0.55 },
     td: {
       display: { default: 'table-cell', '@media (max-width: 840px)': 'block' },
       position: 'relative',
       verticalAlign: 'top',
-      paddingBlock: { default: 11, '@media (max-width: 840px)': 7, '@media (max-width: 460px)': 6 },
-      paddingInlineStart: { default: 12, '@media (max-width: 840px)': 94, '@media (max-width: 460px)': 12 },
+      paddingBlock: { default: 11, '@media (max-width: 840px)': 4 },
+      paddingInlineStart: 12,
       paddingInlineEnd: 12,
       borderTopWidth: { default: 1, '@media (max-width: 840px)': 0 },
       borderTopStyle: 'solid',
       borderTopColor: t.line,
       '::before': {
         content: 'attr(data-label)',
-        position: { default: 'static', '@media (max-width: 840px)': 'absolute', '@media (max-width: 460px)': 'static' },
         display: { default: 'none', '@media (max-width: 840px)': 'block' },
-        insetInlineStart: 12,
-        top: 9,
-        width: { default: 74, '@media (max-width: 460px)': 'auto' },
-        marginBlockEnd: { default: 0, '@media (max-width: 460px)': 3 },
-        fontSize: 10,
+        marginBlockEnd: 1,
+        fontSize: 9.5,
         fontWeight: 700,
         textTransform: 'uppercase',
         letterSpacing: '0.05em',
         color: t.faint,
       },
+    },
+    // the price needs no caption and no row of its own on a phone
+    tdPriceMobile: {
+      position: { default: 'static', '@media (max-width: 840px)': 'absolute' },
+      top: 7,
+      insetInlineEnd: 12,
+      paddingBlock: { default: 11, '@media (max-width: 840px)': 0 },
+      '::before': { display: 'none' },
+    },
+    // seller and where are short, so they share a line instead of taking two
+    tdHalf: {
+      display: { default: 'table-cell', '@media (max-width: 840px)': 'inline-block' },
+      width: { default: 'auto', '@media (max-width: 840px)': '50%' },
+      verticalAlign: 'top',
     },
     cPrice: { whiteSpace: 'nowrap' },
     price: { fontSize: 17, fontWeight: 700 },
@@ -102,6 +114,27 @@
     cMachine: {
       minWidth: { default: 210, '@media (max-width: 840px)': 0 },
       maxWidth: { default: 420, '@media (max-width: 840px)': 'none' },
+      // the thumbnail and the title say what this is
+      '::before': { display: 'none' },
+    },
+    // the thumbnail sits beside the title rather than above it, so a row grows
+    // sideways instead of taller — which is the whole point on a phone
+    machineRow: { display: 'flex', gap: 10, alignItems: 'flex-start' },
+    thumb: {
+      flexGrow: 0, flexShrink: 0,
+      width: { default: 56, '@media (max-width: 460px)': 46 },
+      height: { default: 56, '@media (max-width: 460px)': 46 },
+      objectFit: 'cover',
+      borderRadius: 5,
+      backgroundColor: t.surface2,
+      borderWidth: 1,
+      borderStyle: 'solid',
+      borderColor: t.line,
+    },
+    machineText: {
+      minWidth: 0,
+      flexGrow: 1,
+      paddingInlineEnd: { default: 0, '@media (max-width: 840px)': 72 },
     },
     title: {
       fontWeight: 600,
@@ -135,8 +168,16 @@
       fontSize: 10.5,
     },
 
-    cSpec: { minWidth: { default: 150, '@media (max-width: 840px)': 0 } },
-    line: { display: 'flex', gap: 7, alignItems: 'baseline' },
+    cSpec: {
+      minWidth: { default: 150, '@media (max-width: 840px)': 0 },
+      '::before': { display: 'none' },
+    },
+    line: {
+      display: { default: 'flex', '@media (max-width: 840px)': 'inline-flex' },
+      gap: 7,
+      alignItems: 'baseline',
+      marginInlineEnd: { default: 0, '@media (max-width: 840px)': 14 },
+    },
     k: {
       fontSize: 10,
       fontWeight: 700,
@@ -231,7 +272,7 @@
     <tbody {...stylex.attrs(s.tbody)}>
       {#each sorted as r (r.id)}
         <tr {...stylex.attrs(s.tr, !!r.soldAt && s.trSold)}>
-          <td data-label="Price" {...stylex.attrs(s.td, s.cPrice)}>
+          <td data-label="Price" {...stylex.attrs(s.td, s.cPrice, s.tdPriceMobile)}>
             <span {...stylex.attrs(ui.mono, s.price)}>{money(r.price)}</span>
             {#if stated(r.priceMax) && r.priceMax > r.price}
               <span {...stylex.attrs(s.was)}>was {money(r.priceMax)}</span>
@@ -239,7 +280,20 @@
           </td>
 
           <td data-label="Machine" {...stylex.attrs(s.td, s.cMachine)}>
-            <a href={r.url} target="_blank" rel="noopener noreferrer" {...stylex.attrs(s.title)}>
+            <div {...stylex.attrs(s.machineRow)}>
+              {#if r.imageUrl}
+                <img
+                  src={r.imageUrl}
+                  alt=""
+                  loading="lazy"
+                  decoding="async"
+                  referrerpolicy="no-referrer"
+                  onerror={(e) => (e.currentTarget.hidden = true)}
+                  {...stylex.attrs(s.thumb)}
+                />
+              {/if}
+              <div {...stylex.attrs(s.machineText)}>
+              <a href={r.url} target="_blank" rel="noopener noreferrer" {...stylex.attrs(s.title)}>
               {r.title || '(untitled advert)'}
             </a>
             <div {...stylex.attrs(s.chips)}>
@@ -251,6 +305,8 @@
               {#each r.cautions ?? [] as c (c)}<span {...stylex.attrs(s.chip, s.chipCaution)}>{c}</span>{/each}
             </div>
             <div {...stylex.attrs(ui.hint, s.hintTop)}>{ageLabel(r.ageDays)}</div>
+              </div>
+            </div>
           </td>
 
           <td data-label="Specification" {...stylex.attrs(s.td, s.cSpec)}>
@@ -304,7 +360,7 @@
             {/if}
           </td>
 
-          <td data-label="Seller" {...stylex.attrs(s.td, s.cSeller)}>
+          <td data-label="Seller" {...stylex.attrs(s.td, s.cSeller, s.tdHalf)}>
             <div {...stylex.attrs(s.trust)}>
               <b {...stylex.attrs(s.trustB, TRUST[sellerTone(r)])}>{r.reviews ?? '?'} review{r.reviews === 1 ? '' : 's'}</b>
               {#if percent(r.positivePct)}
@@ -316,7 +372,7 @@
             {#if stated(r.reports)}<div {...stylex.attrs(ui.hint, s.hintTop)}>{r.reports} reports</div>{/if}
           </td>
 
-          <td data-label="Where" {...stylex.attrs(s.td, s.cWhere)}>
+          <td data-label="Where" {...stylex.attrs(s.td, s.cWhere, s.tdHalf)}>
             <div {...stylex.attrs(s.source)}>{r.source}</div>
             {#if where(r)}
               <div>{where(r)}</div>

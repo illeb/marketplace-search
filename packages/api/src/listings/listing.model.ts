@@ -17,6 +17,8 @@ export class Listing {
   @Field({ nullable: true }) city?: string;
   @Field({ nullable: true }) country?: string;
   @Field() shippable!: boolean;
+  /** Thumbnail from the source advert; null when it carried no photo. */
+  @Field({ nullable: true }) imageUrl?: string;
   @Field() firstSeen!: string;
   @Field({ nullable: true }) soldAt?: string;
   @Field() isNew!: boolean;

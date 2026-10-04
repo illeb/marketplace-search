@@ -23,6 +23,8 @@ export async function search({ query, maxPages = 3 }) {
       out.push({
         source: id, sourceId: a.urn.split(':').pop(), url: a.urls?.default || '',
         title: a.subject || '', description: a.body || '', price,
+        imageUrl: a.images?.[0]?.cdn_base_url
+          ? `${a.images[0].cdn_base_url}?rule=gallery-thumbnail-desktop-1x-auto` : null,
         sellerId: a.advertiser?.user_id || null,
         city: a.geo?.town?.value || a.geo?.city?.value || null,
         region: a.geo?.region?.value || null, country: 'IT',

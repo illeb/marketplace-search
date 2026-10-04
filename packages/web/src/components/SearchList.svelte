@@ -53,7 +53,7 @@
       borderWidth: 0,
       borderRadius: 0,
       cursor: 'pointer',
-      paddingBlock: 9,
+      paddingBlock: { default: 9, '@media (max-width: 620px)': 7 },
       paddingInlineStart: 11,
       paddingInlineEnd: 4,
       backgroundColor: { default: 'transparent', ':hover': t.surface2 },
@@ -65,6 +65,7 @@
     name: { fontWeight: 600, display: 'flex', alignItems: 'center', gap: 6 },
     nameOff: { textDecoration: 'line-through' },
     sub: {
+      display: { default: 'block', '@media (max-width: 620px)': 'none' },
       fontSize: 11.5,
       fontWeight: 400,
       color: t.muted,

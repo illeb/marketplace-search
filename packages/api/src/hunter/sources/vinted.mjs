@@ -60,6 +60,7 @@ export async function search({ query, maxPrice = 1000, maxPages = 3 }) {
       title: x.title || '', description: '', price: +x.price.amount,
       sellerId: x.user?.id ? String(x.user.id) : null, city: null, country: null,
       shippable: true, condition: x.item_box?.second_line || null, needsDetail: true,
+      imageUrl: x.photo?.url || x.photo?.thumbnails?.at(-1)?.url || null,
     });
     if (page >= (d.pagination?.total_pages || 1) || !items.length) break;
     await sleep(CONFIG.politeness.vintedMs);

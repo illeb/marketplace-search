@@ -31,7 +31,7 @@ export const SEARCHES = gql`
 export const LISTINGS = gql`
   query Listings($searchId: Int!) {
     listings(searchId: $searchId) {
-      id source url title price city country shippable
+      id source url title price city country shippable imageUrl
       firstSeen soldAt isNew distanceKm
       vendor family model chassis cpu cpuNum generation year
       ramGb ssdGb hddGb storageGb memTotal memSticks memPer memSpeed tiered

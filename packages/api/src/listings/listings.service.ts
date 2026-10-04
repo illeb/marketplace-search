@@ -37,6 +37,7 @@ export class ListingsService {
       city: r.city ?? undefined,
       country: r.country ?? undefined,
       shippable: !!r.shippable,
+      imageUrl: r.image_url ?? undefined,
       firstSeen: r.first_seen,
       soldAt: r.sold_at ?? undefined,
       isNew: String(r.first_matched ?? '').slice(0, 10) === today,
