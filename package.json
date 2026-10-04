@@ -1,16 +1,17 @@
 {
-  "name": "marketplace-hunter",
+  "name": "marketplace-search",
   "version": "1.0.0",
-  "description": "Watches Subito, Wallapop and Vinted for used business desktops and parts, normalises the specs, scores the sellers and keeps price history.",
+  "private": true,
+  "description": "Watches Subito, Wallapop and Vinted for second-hand listings, parses what the adverts say, scores the sellers and keeps price history.",
   "type": "module",
-  "engines": {
-    "node": ">=22.5"
-  },
+  "packageManager": "pnpm@10.18.1",
+  "engines": { "node": ">=22.5", "pnpm": ">=10" },
   "scripts": {
-    "start": "node --no-warnings src/server.mjs",
-    "worker": "node --no-warnings src/worker.mjs",
-    "once": "node --no-warnings src/worker.mjs --once",
-    "ui:dev": "npm --prefix frontend run dev",
-    "ui:build": "npm --prefix frontend run build"
+    "dev": "pnpm --parallel --filter \"./packages/*\" dev",
+    "build": "pnpm --filter web build",
+    "start": "pnpm --filter api start",
+    "serve": "pnpm --filter api serve",
+    "worker": "pnpm --filter api worker",
+    "once": "pnpm --filter api once"
   }
 }

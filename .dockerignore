@@ -1,13 +1,10 @@
-# the image builds the frontend itself
+# the image installs and builds inside itself
 node_modules
-frontend/node_modules
-frontend/dist
+**/node_modules
+packages/web/dist
 
-# built output is produced in the ui stage, never copied from the host
-public
-
-# local database and its write-ahead log; the container uses a volume
-data
+# local database; the container uses a volume
+packages/api/data
 
 .git
 .github

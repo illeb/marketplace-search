@@ -1,31 +1,37 @@
-# The runtime has no npm dependencies: everything the server uses is in the Node
-# standard library, node:sqlite included. npm appears only in the build stage,
-# to compile the Svelte frontend into static files.
+# The api package has no runtime dependencies: everything it uses is in the Node
+# standard library, node:sqlite included. pnpm appears only in the build stage,
+# to compile the web package into static files.
 
-# ---- build the frontend ----------------------------------------------------
-FROM node:24-alpine AS ui
+# ---- build the web package -------------------------------------------------
+FROM node:24-alpine AS web
 
+RUN corepack enable
 WORKDIR /build
-# the lockfile alone first, so a source edit does not re-install the toolchain
-COPY frontend/package.json frontend/package-lock.json ./frontend/
-RUN npm --prefix frontend ci --no-audit --no-fund
 
-COPY frontend ./frontend
-RUN npm --prefix frontend run build
-# vite writes to ../public, so the output lands at /build/public
+# manifests and the lockfile first, so editing a component does not reinstall
+# the toolchain on every build
+COPY pnpm-workspace.yaml pnpm-lock.yaml package.json ./
+COPY packages/web/package.json ./packages/web/
+COPY packages/api/package.json ./packages/api/
+RUN pnpm install --frozen-lockfile --filter web
+
+COPY packages/web ./packages/web
+RUN pnpm --filter web build
+# output lands at /build/packages/web/dist
 
 # ---- runtime ---------------------------------------------------------------
 FROM node:24-alpine AS runtime
 
-# wget comes from busybox and is what HEALTHCHECK uses
 WORKDIR /app
 
-COPY package.json ./
-COPY src ./src
-COPY --from=ui /build/public ./public
+# The directory layout is kept identical to the repository so the api resolves
+# its static root the same way it does in development: ../../web/dist.
+COPY packages/api/package.json ./packages/api/
+COPY packages/api/src ./packages/api/src
+COPY --from=web /build/packages/web/dist ./packages/web/dist
 
 # The database lives on a volume so price history survives a redeploy. It is
-# created on first run; the directory has to be writable by the node user.
+# created on first run, so the directory has to be writable by the node user.
 RUN mkdir -p /data && chown -R node:node /data /app
 USER node
 
@@ -42,4 +48,4 @@ HEALTHCHECK --interval=60s --timeout=5s --start-period=15s --retries=3 \
   CMD wget -qO- "http://127.0.0.1:${PORT}/api/stats" > /dev/null || exit 1
 
 # one process serves the UI and runs the hourly sweep
-CMD ["node", "--no-warnings", "src/serve-and-sweep.mjs"]
+CMD ["node", "--no-warnings", "packages/api/src/serve-and-sweep.mjs"]

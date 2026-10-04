@@ -1,5 +1,6 @@
 import http from 'node:http';
 import { readFile } from 'node:fs/promises';
+import { join } from 'node:path';
 import { CONFIG } from './config.mjs';
 import { db } from './db.mjs';
 import { runSearch, sweep } from './worker.mjs';
@@ -135,7 +136,7 @@ const server = http.createServer(async (req, res) => {
                     woff2:'font/woff2', ico:'image/x-icon', png:'image/png', map:'application/json' };
     let body;
     try {
-      body = await readFile(new URL(`../public/${file}`, import.meta.url));
+      body = await readFile(join(CONFIG.webRoot, file));
     } catch (e) {
       // A missing file is a 404, not a server error, and the error text stays in
       // the log rather than going out to the client.

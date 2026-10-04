@@ -9,30 +9,40 @@ bicycles, whatever — it skips the specification parsing and matches on price, 
 Built after six manual sweeps of the same market. The parser carries the corrections those
 runs produced, which is most of the value here.
 
+## Layout
+
+A pnpm workspace of two packages.
+
+```
+packages/api    the watcher: marketplace adapters, advert parser, matcher, HTTP API
+packages/web    the Svelte interface
+```
+
+`api` has **no runtime dependencies** — everything it uses is Node standard library,
+`node:sqlite` included. pnpm exists only to build `web`, whose toolchain never ships to the
+runtime. `web` builds to `packages/web/dist`, which `api` serves as its static root.
+
 ## Running it locally
 
 ```bash
 node --version          # 22.5 or newer, for the built-in SQLite
-npm run ui:build        # compile the Svelte frontend into public/
-npm start               # http://localhost:8080
+pnpm install
+pnpm build              # compile web into packages/web/dist
+pnpm start              # http://localhost:8080
 ```
 
-The server has **no dependencies to install** — everything it uses is Node standard library,
-`node:sqlite` included. npm appears only to build the frontend, whose toolchain lives in
-`frontend/` and never ships to the runtime.
-
-While working on the interface:
+While working on the interface, run both and let Vite proxy the API:
 
 ```bash
-npm start               # backend on :8080
-npm run ui:dev          # Vite on :5173, proxying /api to :8080
+pnpm start              # api on :8080
+pnpm --filter web dev   # vite on :5173
 ```
 
 To sweep on a schedule from the command line instead of the UI:
 
 ```bash
-npm run worker          # sweeps now, then every SWEEP_MINUTES
-npm run once            # a single sweep, then exits
+pnpm worker             # sweeps now, then every SWEEP_MINUTES
+pnpm once               # a single sweep, then exits
 ```
 
 ## Deploying to Arcane
@@ -45,9 +55,11 @@ it. Updating afterwards is a pull and a recreate, with no source checkout on the
 docker compose pull && docker compose up -d
 ```
 
-The image is a two-stage build: Node plus npm compile the Svelte app, and the runtime stage
-keeps only `src/`, `package.json` and the compiled `public/`. It runs as the unprivileged
-`node` user and has a healthcheck on `/api/stats`.
+The image is a two-stage build: the first stage installs pnpm and compiles `web`, and the
+runtime stage keeps only `packages/api/src`, its manifest and the compiled
+`packages/web/dist`. The directory layout matches the repository, so the api resolves its
+static root the same way it does in development. It runs as the unprivileged `node` user and
+has a healthcheck on `/api/stats`.
 
 **The package inherits the repository's visibility.** While the repo is private the Proxmox
 host needs `docker login ghcr.io` with a token that has `read:packages`. Making just the

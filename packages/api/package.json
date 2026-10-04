@@ -1,0 +1,15 @@
+{
+  "name": "api",
+  "version": "1.0.0",
+  "private": true,
+  "description": "The watcher: three marketplace adapters, the advert parser, the matcher and the HTTP API. No runtime dependencies.",
+  "type": "module",
+  "engines": { "node": ">=22.5" },
+  "scripts": {
+    "dev": "node --no-warnings --watch src/server.mjs",
+    "start": "node --no-warnings src/server.mjs",
+    "serve": "node --no-warnings src/serve-and-sweep.mjs",
+    "worker": "node --no-warnings src/worker.mjs",
+    "once": "node --no-warnings src/worker.mjs --once"
+  }
+}
