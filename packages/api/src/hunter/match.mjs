@@ -59,13 +59,13 @@ export function evaluate(search, listing, spec, seller) {
 /** Advisory notes shown next to a row that already matched. */
 export function cautions(listing, spec, seller) {
   const out = [];
-  if (spec?.chassis === 'Unstated') out.push('chassis not stated, ask the seller');
-  if (spec?.model && DDR3_MODELS.has(spec.model)) out.push('DDR3L memory, 16 GB ceiling');
-  if (listing.shippable === 0) out.push('collection in person only');
-  if (seller && seller.reviews != null && seller.reviews < 5) out.push(`only ${seller.reviews} reviews`);
+  if (spec?.chassis === 'Unstated') out.push('formato non indicato, chiedi al venditore');
+  if (spec?.model && DDR3_MODELS.has(spec.model)) out.push('memoria DDR3L, massimo 16 GB');
+  if (listing.shippable === 0) out.push('solo ritiro di persona');
+  if (seller && seller.reviews != null && seller.reviews < 5) out.push(`solo ${seller.reviews} recension${seller.reviews === 1 ? 'e' : 'i'}`);
   if (seller?.positivePct != null && seller.positivePct < 90 && (seller.reviews ?? 0) >= 5)
     out.push(`${seller.positivePct}% positive`);
-  if ((seller?.reports ?? 0) >= 50) out.push(`${seller.reports} seller reports`);
-  if (spec?.ssd && spec.ssd < 256) out.push(`${spec.ssd} GB drive`);
+  if ((seller?.reports ?? 0) >= 50) out.push(`${seller.reports} segnalazioni sul venditore`);
+  if (spec?.ssd && spec.ssd < 256) out.push(`disco da ${spec.ssd} GB`);
   return out;
 }

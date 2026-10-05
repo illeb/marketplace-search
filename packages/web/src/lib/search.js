@@ -23,7 +23,7 @@ const BOOLEAN = new Set(['includeUnlocated', 'enabled']);
 export const LIST_FIELDS = new Set(['sources', 'countries', 'chassis', 'brands', 'cpuTiers']);
 
 export const DEFAULT_SEARCH = {
-  name: 'New search',
+  name: 'Nuova ricerca',
   query: '',
   kind: 'COMPUTER',
   minPrice: 0,
@@ -104,15 +104,15 @@ export const SOURCES = [
 
 export const KINDS = [
   { value: 'COMPUTER', label: 'Computer' },
-  { value: 'MEMORY', label: 'Memory' },
-  { value: 'OTHER', label: 'Other' },
+  { value: 'MEMORY', label: 'Memoria' },
+  { value: 'OTHER', label: 'Altro' },
 ];
 
 export const CHASSIS = [
   { value: 'Micro', label: 'Micro' },
   { value: 'SFF', label: 'SFF' },
   { value: 'Tower', label: 'Tower' },
-  { value: 'Unstated', label: 'Unstated' },
+  { value: 'Unstated', label: 'Non indicato' },
 ];
 
 export const BRANDS = [
@@ -132,7 +132,7 @@ export const CPU_TIERS = [
 ];
 
 export const VENDORS = [
-  { value: null, label: 'Any' },
+  { value: null, label: 'Qualsiasi' },
   { value: 'INTEL', label: 'Intel' },
   { value: 'AMD', label: 'AMD' },
 ];

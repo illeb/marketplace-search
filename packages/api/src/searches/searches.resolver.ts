@@ -1,6 +1,6 @@
 import { Args, Int, Mutation, Query, Resolver } from '@nestjs/graphql';
 import { SearchesService } from './searches.service.js';
-import { RunResult, Search, SearchInput } from './search.model.js';
+import { RunResult, RunProgress, RunRecord, Search, SearchInput } from './search.model.js';
 
 @Resolver(() => Search)
 export class SearchesResolver {
@@ -12,6 +12,14 @@ export class SearchesResolver {
   @Query(() => Search, { name: 'search', nullable: true })
   findOne(@Args('id', { type: () => Int }) id: number): Search | null {
     return this.searches.findOne(id);
+  }
+
+  @Query(() => [RunProgress], { name: 'runProgress' })
+  progress(): RunProgress[] { return this.searches.progress(); }
+
+  @Query(() => [RunRecord], { name: 'runHistory' })
+  history(@Args('limit', { type: () => Int, nullable: true }) limit?: number): RunRecord[] {
+    return this.searches.history(limit ?? 50);
   }
 
   @Mutation(() => Search)

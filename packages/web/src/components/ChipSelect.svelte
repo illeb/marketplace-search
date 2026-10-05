@@ -39,9 +39,9 @@
   let {
     options,
     value = $bindable([]),
-    emptyLabel = 'none picked — all allowed',
+    emptyLabel = 'nessuno selezionato: vanno bene tutti',
     filterable = false,
-    filterPlaceholder = 'filter…',
+    filterPlaceholder = 'filtra…',
   } = $props();
 
   let filter = $state('');
@@ -71,11 +71,11 @@
       />
       {#if chosen.size}
         <button type="button" onclick={clear} {...stylex.attrs(ui.button, ui.quiet, s.tiny)}>
-          clear {chosen.size}
+          azzera {chosen.size}
         </button>
       {:else}
         <button type="button" onclick={all} {...stylex.attrs(ui.button, ui.quiet, s.tiny)}>
-          pick all
+          tutti
         </button>
       {/if}
     </div>
@@ -90,7 +90,7 @@
         {...stylex.attrs(s.chip, chosen.has(opt.value) && s.on)}
       >{opt.label}</button>
     {:else}
-      <span {...stylex.attrs(ui.hint)}>nothing matches “{filter}”</span>
+      <span {...stylex.attrs(ui.hint)}>niente corrisponde a “{filter}”</span>
     {/each}
   </div>
 

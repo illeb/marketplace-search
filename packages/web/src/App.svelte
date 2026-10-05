@@ -61,6 +61,15 @@
       minWidth: 0,
     },
     main: { display: 'flex', flexDirection: 'column', gap: 12, minWidth: 0 },
+    histPanel: { marginBlockStart: 10, paddingBlock: 8, paddingInline: 10 },
+    histEmpty: { margin: 0 },
+    histList: { listStyle: 'none', margin: 0, padding: 0, display: 'flex', flexDirection: 'column', gap: 5 },
+    histRow: { display: 'flex', alignItems: 'baseline', gap: 7, fontSize: 12 },
+    histWhen: { flexGrow: 0, flexShrink: 0, fontSize: 11, color: t.faint },
+    histWhat: { flexGrow: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' },
+    histTrigger: { marginInlineStart: 5, fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.05em', color: t.faint },
+    histOut: { flexGrow: 0, flexShrink: 0, fontSize: 11, color: t.muted },
+    histBad: { color: t.bad },
     favBar: { paddingBlock: 13, paddingInline: 15 },
     favTitle: { margin: 0, fontSize: 16, letterSpacing: '-0.01em' },
     favHint: { marginBlockStart: 3, marginBlockEnd: 0, maxWidth: '70ch' },
@@ -91,7 +100,7 @@
 <script>
   import { api } from './lib/gql.js';
   import { toDraft, newDraft, changedFields, SEARCH_FIELDS, toInput } from './lib/search.js';
-  import { isNew, specsStated } from './lib/format.js';
+  import { isNew, specsStated, hoursSinceAdded, dateTime, duration } from './lib/format.js';
   import { registerTools } from './lib/webmcp.js';
 
   import SearchList from './components/SearchList.svelte';
@@ -109,6 +118,9 @@
   let favRows = $state(null);
   let previewRows = $state(null);       // what the unsaved filters would match
   let previewing = $state(false);
+  let progress = $state([]);            // scansioni in corso, dal server
+  let history = $state(null);           // storico, caricato su richiesta
+  let showHistory = $state(false);
   let booted = $state(false);
   let error = $state(null);
 
@@ -128,10 +140,12 @@
 
   /* ---- the view lens ---------------------------------------------------- */
   let view = $state({
-    newOnly: false, specsOnly: false, shipsOnly: false, hideSold: true, maxPrice: null,
+    newOnly: false, specsOnly: false, shipsOnly: false, hideSold: true,
+    maxPrice: null, addedWithin: 0,
   });
 
   const selected = $derived(searches.find((s) => s.id === selectedId) ?? null);
+  const selectedProgress = $derived(progress.find((p) => p.searchId === selectedId) ?? null);
   const draft = $derived(pendingNew ?? drafts[selectedId] ?? null);
   const changed = $derived(
     !draft ? [] : pendingNew ? SEARCH_FIELDS.slice() : changedFields(draft, selected),
@@ -172,6 +186,10 @@
       if (view.hideSold && r.soldAt) return false;
       if (view.newOnly && !isNew(r)) return false;
       if (view.specsOnly && !specsStated(r)) return false;
+      if (view.addedWithin) {
+        const h = hoursSinceAdded(r);
+        if (h == null || h > view.addedWithin) return false;
+      }
       if (view.shipsOnly && !r.shippable) return false;
       if (view.maxPrice != null && Number(r.price ?? 0) > view.maxPrice) return false;
       return true;
@@ -270,6 +288,32 @@
       }
     }, 320);
   });
+
+  // Una scansione dura minuti: il server dice a che punto è, e si smette di
+  // chiedere appena non c'è più niente in corso.
+  let progressTimer = null;
+  function watchProgress() {
+    clearInterval(progressTimer);
+    progressTimer = setInterval(async () => {
+      try {
+        progress = await api.runProgress();
+        if (!progress.length && !running && !sweeping) {
+          clearInterval(progressTimer);
+          progressTimer = null;
+        }
+      } catch { /* una lettura persa non merita un banner */ }
+    }, 1500);
+  }
+
+  async function loadHistory() {
+    try { history = await api.runHistory(40); }
+    catch (e) { error = `Storico non caricato: ${e.message}`; }
+  }
+
+  function toggleHistory() {
+    showHistory = !showHistory;
+    if (showHistory && !history) loadHistory();
+  }
 
   async function loadFavourites() {
     try { favRows = await api.favourites(); }
@@ -381,9 +425,12 @@
     running = true;
     runResult = null;
     runError = null;
+    progress = [];
+    watchProgress();
     const id = selected.id;
     try {
       runResult = await api.runSearch(id);
+      history = null;
       await Promise.all([loadRows(id, { force: true }), refreshSearches(), refreshStats()]);
     } catch (e) {
       runError = e.message;
@@ -414,6 +461,7 @@
       return;
     }
     sweeping = true;
+    watchProgress();
     const deadline = Date.now() + 20 * 60 * 1000;
     clearInterval(sweepTimer);
     sweepTimer = setInterval(async () => {
@@ -441,8 +489,8 @@
   <h1 {...stylex.attrs(s.h1)}>Marketplace&nbsp;Hunter</h1>
   {#if stats}
     <p {...stylex.attrs(ui.mono, s.stats)}>
-      {stats.listings} listings · {stats.live} live · {stats.sold} sold ·
-      {stats.sellers} sellers · {stats.searches} searches
+      {stats.listings} annunci · {stats.live} attivi · {stats.sold} venduti ·
+      {stats.sellers} venditori · {stats.searches} ricerche
     </p>
   {/if}
 </header>
@@ -451,7 +499,7 @@
   <div role="alert" {...stylex.attrs(s.banner)}>
     <span {...stylex.attrs(s.bannerText)}>{error}</span>
     <button type="button" onclick={() => (error = null)}
-      {...stylex.attrs(ui.button, ui.quiet)}>Dismiss</button>
+      {...stylex.attrs(ui.button, ui.quiet)}>Chiudi</button>
   </div>
 {/if}
 
@@ -471,37 +519,76 @@
       ondelete={remove}
       onsweep={sweep}
       onfavourites={showFavourites}
+      {showHistory}
+      onhistory={toggleHistory}
     />
+
+    {#if showHistory}
+      <div {...stylex.attrs(ui.panel, s.histPanel)}>
+        {#if !history}
+          <p {...stylex.attrs(ui.hint, s.histEmpty)}>Carico…</p>
+        {:else if !history.length}
+          <p {...stylex.attrs(ui.hint, s.histEmpty)}>
+            Ancora nessuna scansione registrata. Lo storico parte da questa versione: le
+            scansioni fatte prima non sono state annotate da nessuna parte.
+          </p>
+        {:else}
+          <ul {...stylex.attrs(s.histList)}>
+            {#each history as h (h.id)}
+              <li {...stylex.attrs(s.histRow)}>
+                <span {...stylex.attrs(ui.mono, s.histWhen)}>{dateTime(h.startedAt)}</span>
+                <span {...stylex.attrs(s.histWhat)}>
+                  {h.searchName ?? 'ricerca rimossa'}
+                  <span {...stylex.attrs(s.histTrigger)}>
+                    {h.trigger === 'schedule' ? 'automatica' : h.trigger === 'sweep' ? 'tutte' : 'manuale'}
+                  </span>
+                </span>
+                <span {...stylex.attrs(ui.mono, s.histOut)}>
+                  {#if h.error}
+                    <span {...stylex.attrs(s.histBad)}>errore</span>
+                  {:else if !h.finishedAt}
+                    in corso
+                  {:else}
+                    {h.matched ?? 0} · {duration(h.startedAt, h.finishedAt)}
+                  {/if}
+                </span>
+              </li>
+            {/each}
+          </ul>
+        {/if}
+      </div>
+    {/if}
   </aside>
 
   <main {...stylex.attrs(s.main)}>
     {#if mode === 'favourites'}
       <div {...stylex.attrs(ui.panel, s.favBar)}>
-        <h2 {...stylex.attrs(s.favTitle)}>Saved adverts</h2>
+        <h2 {...stylex.attrs(s.favTitle)}>Annunci preferiti</h2>
         <p {...stylex.attrs(ui.hint, s.favHint)}>
-          Kept by hand, independent of any search. They stay here when a search is
-          deleted or an advert goes stale. Press the star on a row to remove one.
+          Tenuti da parte a mano, indipendenti da qualsiasi ricerca. Restano qui anche se
+          cancelli la ricerca che li ha trovati o se l'annuncio sparisce. La stella su una
+          riga li toglie.
         </p>
       </div>
       {#if !favRows}
-        <p {...stylex.attrs(s.placeholder)}>Loading…</p>
+        <p {...stylex.attrs(s.placeholder)}>Carico…</p>
       {:else if !favRows.length}
         <p {...stylex.attrs(s.placeholder)}>
-          Nothing saved yet. Press the star on any advert to keep it here.
+          Ancora niente. Premi la stella su un annuncio per tenerlo qui.
         </p>
       {:else}
         <ViewFilters bind:view shown={visible.length} total={favRows.length} kind={null} />
         <ResultsTable rows={visible} search={null} onfavourite={toggleFavourite} />
       {/if}
     {:else if !booted}
-      <p {...stylex.attrs(s.placeholder)}>Loading…</p>
+      <p {...stylex.attrs(s.placeholder)}>Carico…</p>
     {:else if !draft}
       <p {...stylex.attrs(s.placeholder)}>
-        {searches.length ? 'Pick a search on the left.' : 'No searches yet — create one to begin.'}
+        {searches.length ? 'Scegli una ricerca a sinistra.' : 'Nessuna ricerca: creane una per iniziare.'}
       </p>
     {:else}
       {#if !pendingNew}
-        <RunControls search={selected} {running} {runResult} {runError} onrun={run} />
+        <RunControls search={selected} {running} {runResult} {runError} progress={selectedProgress} onrun={run} />
       {/if}
 
       <FilterEditor
@@ -524,16 +611,16 @@
         />
 
         {#if loadingRows && !rows}
-          <p {...stylex.attrs(s.placeholder)}>Loading listings…</p>
+          <p {...stylex.attrs(s.placeholder)}>Carico gli annunci…</p>
         {:else if !rows?.length}
-          <p {...stylex.attrs(s.placeholder)}>Nothing matched yet. Press <b>Run now</b> to sweep the marketplaces.</p>
+          <p {...stylex.attrs(s.placeholder)}>Ancora nessuna corrispondenza. Premi <b>Scansiona questa ricerca</b>.</p>
         {:else if !visible.length}
-          <p {...stylex.attrs(s.placeholder)}>Every one of the {rows.length} matches is hidden by the view filters.</p>
+          <p {...stylex.attrs(s.placeholder)}>Tutte le {rows.length} corrispondenze sono nascoste dai filtri di vista.</p>
         {:else}
           {#if previewRows}
             <p {...stylex.attrs(s.previewNote)}>
-              Showing what the open filters would match. <b>Save</b> to keep them for the
-              hourly sweeps.
+              Stai vedendo cosa troverebbero i filtri aperti. <b>Salva</b> per usarli anche
+              nelle scansioni automatiche.
             </p>
           {/if}
           <ResultsTable rows={visible} search={selected} onfavourite={toggleFavourite} />

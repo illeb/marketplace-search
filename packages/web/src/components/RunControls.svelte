@@ -19,6 +19,15 @@
     line: { marginBlock: 2, marginBlockEnd: 0 },
     bad: { color: t.bad },
     btn: { display: 'inline-flex', alignItems: 'center', gap: 7 },
+    bar: {
+      width: '100%',
+      height: 4,
+      marginBlockStart: 8,
+      borderRadius: 999,
+      backgroundColor: t.surface3,
+      overflow: 'hidden',
+    },
+    barFill: { height: '100%', backgroundColor: t.accent, borderRadius: 999 },
     spinner: {
       width: 12,
       height: 12,
@@ -39,7 +48,7 @@
 <script>
   import { timeAgo } from '../lib/format.js';
 
-  let { search, running, runResult, runError, onrun } = $props();
+  let { search, running, runResult, runError, progress = null, onrun } = $props();
 
   const lastRun = $derived(timeAgo(search?.lastRunAt));
   const sources = $derived((search?.sources ?? []).join(', '));
@@ -47,20 +56,41 @@
 
 <div {...stylex.attrs(ui.panel, s.bar)}>
   <div {...stylex.attrs(s.who)}>
-    <h2 {...stylex.attrs(s.title)}>{search?.name || 'No search selected'}</h2>
+    <h2 {...stylex.attrs(s.title)}>{search?.name || 'Nessuna ricerca selezionata'}</h2>
     <p {...stylex.attrs(ui.hint, s.line)}>
       {#if running}
-        Sweeping {sources || 'the marketplaces'} — this usually takes one to four minutes.
+        {#if progress}
+          Passo {progress.step} di {progress.steps} &middot; {progress.label} &middot;
+          {progress.found} annunci letti
+        {:else}
+          Avvio…
+        {/if}
       {:else if runError}
-        <span {...stylex.attrs(s.bad)}>Run failed: {runError}</span>
+        <span {...stylex.attrs(s.bad)}>Scansione fallita: {runError}</span>
       {:else if runResult}
-        Found {runResult.found} · {runResult.offTopic} off topic · <b>{runResult.matched} matched</b>
+        Letti {runResult.found} &middot; {runResult.offTopic} fuori tema &middot;
+        <b>{runResult.matched} corrispondenti</b>
       {:else if lastRun}
-        Last scanned {lastRun} &middot; reads {sources || 'the marketplaces'} for this search only
+        Ultima scansione {lastRun} &middot; legge {sources || 'i marketplace'}, solo per questa ricerca
       {:else}
-        Never scanned &middot; reads {sources || 'the marketplaces'} for this search only
+        Mai scansionata &middot; legge {sources || 'i marketplace'}, solo per questa ricerca
       {/if}
     </p>
+    {#if running}
+      <div
+        role="progressbar"
+        aria-valuenow={progress?.step ?? 0}
+        aria-valuemin="0"
+        aria-valuemax={progress?.steps ?? 1}
+        {...stylex.attrs(s.bar)}
+      >
+        <!-- la larghezza è l'unica cosa dinamica, quindi resta un attributo style -->
+        <div
+          class={stylex.attrs(s.barFill).class}
+          style="width: {progress && progress.steps ? Math.round((progress.step / progress.steps) * 100) : 6}%"
+        ></div>
+      </div>
+    {/if}
   </div>
 
   <button
@@ -70,9 +100,10 @@
     {...stylex.attrs(ui.button, ui.primary, s.btn)}
   >
     {#if running}
-      <span aria-hidden="true" {...stylex.attrs(s.spinner)}></span>Scanning…
+      <span aria-hidden="true" {...stylex.attrs(s.spinner)}></span>
+      {progress ? `${progress.step}/${progress.steps}` : 'Scansione…'}
     {:else}
-      Scan this search
+      Scansiona questa ricerca
     {/if}
   </button>
 

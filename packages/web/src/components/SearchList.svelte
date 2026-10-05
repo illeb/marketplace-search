@@ -189,6 +189,8 @@
     ondelete,
     onsweep,
     onfavourites,
+    onhistory,
+    showHistory = false,
   } = $props();
 
   const enabledCount = $derived(searches.filter((x) => x.enabled).length);
@@ -199,11 +201,11 @@
   }
 </script>
 
-<nav {...stylex.attrs(s.nav)} aria-label="Saved searches">
+<nav {...stylex.attrs(s.nav)} aria-label="Ricerche salvate">
   <div {...stylex.attrs(s.head)}>
-    <h2 {...stylex.attrs(s.h2)}>Searches</h2>
+    <h2 {...stylex.attrs(s.h2)}>Ricerche</h2>
     <button type="button" onclick={onnew} {...stylex.attrs(ui.button, ui.primary, s.newBtn)}>
-      + New search
+      + Nuova ricerca
     </button>
   </div>
 
@@ -211,8 +213,8 @@
     {#if draftingNew}
       <li {...stylex.attrs(s.item, s.itemOn, s.itemDraft)}>
         <div {...stylex.attrs(s.body, s.bodyDraft)}>
-          <span {...stylex.attrs(s.name)}>New search</span>
-          <span {...stylex.attrs(s.sub)}>unsaved — fill it in and press Create</span>
+          <span {...stylex.attrs(s.name)}>Nuova ricerca</span>
+          <span {...stylex.attrs(s.sub)}>non salvata: compilala e premi Crea</span>
         </div>
       </li>
     {/if}
@@ -229,42 +231,42 @@
         >
           <span {...stylex.attrs(s.body)}>
             <span {...stylex.attrs(s.name, !item.enabled && s.nameOff)}>
-              {item.name || '(unnamed)'}
-              {#if on && dirty}<span title="unsaved changes" {...stylex.attrs(s.dot)}></span>{/if}
+              {item.name || '(senza nome)'}
+              {#if on && dirty}<span title="modifiche non salvate" {...stylex.attrs(s.dot)}></span>{/if}
             </span>
-            <span {...stylex.attrs(s.sub)}>{item.query || 'no search terms'}</span>
+            <span {...stylex.attrs(s.sub)}>{item.query || 'nessun termine di ricerca'}</span>
           </span>
-          <span title="live matches" {...stylex.attrs(ui.mono, s.count, on && s.countOn)}>
+          <span title="corrispondenze attive" {...stylex.attrs(ui.mono, s.count, on && s.countOn)}>
             {count == null ? '…' : count}
           </span>
         </button>
 
         {#if deletingId === item.id}
           <div {...stylex.attrs(s.confirm)}>
-            <span {...stylex.attrs(s.confirmText)}>Delete “{item.name}”? Listings stay in the database.</span>
+            <span {...stylex.attrs(s.confirmText)}>Eliminare “{item.name}”? Gli annunci restano nel database.</span>
             <button
               type="button"
               onclick={(e) => { e.stopPropagation(); ondelete(item.id); }}
               {...stylex.attrs(ui.button, ui.danger, s.confirmBtn)}
-            >Delete</button>
+            >Elimina</button>
             <button
               type="button"
               onclick={(e) => confirmFor(item.id, e)}
               {...stylex.attrs(ui.button, ui.quiet, s.confirmBtn)}
-            >Keep</button>
+            >Annulla</button>
           </div>
         {:else}
           <button
             type="button"
-            title="Delete this search"
-            aria-label="Delete {item.name}"
+            title="Elimina questa ricerca"
+            aria-label="Elimina {item.name}"
             onclick={(e) => confirmFor(item.id, e)}
             {...stylex.attrs(ui.button, s.del)}
           >×</button>
         {/if}
       </li>
     {:else}
-      <li {...stylex.attrs(s.empty)}>No searches yet. Create one to begin.</li>
+      <li {...stylex.attrs(s.empty)}>Ancora nessuna ricerca. Creane una per iniziare.</li>
     {/each}
   </ul>
 
@@ -274,12 +276,23 @@
     onclick={onsweep}
     {...stylex.attrs(ui.button, ui.buttonHover, s.scanAll)}
   >
-    {#if sweeping}<span aria-hidden="true" {...stylex.attrs(s.spinner)}></span>Scanning…{:else}Scansiona tutti{/if}
+    {#if sweeping}<span aria-hidden="true" {...stylex.attrs(s.spinner)}></span>Scansione in corso…{:else}Scansiona tutti{/if}
   </button>
   <p {...stylex.attrs(ui.hint, s.scanNote)}>
-    Runs all {enabledCount} enabled {enabledCount === 1 ? 'search' : 'searches'} against the three
-    marketplaces, in the background, a few minutes each. The same pass the hourly schedule makes.
+    Lancia {enabledCount} {enabledCount === 1 ? 'ricerca attiva' : 'ricerche attive'} su Subito,
+    Wallapop e Vinted, una dopo l'altra, in background, qualche minuto ciascuna. Le ricerche in
+    pausa sono saltate. È lo stesso passaggio che fa la schedulazione oraria.
   </p>
+
+  <button
+    type="button"
+    onclick={onhistory}
+    aria-expanded={showHistory}
+    {...stylex.attrs(s.favRow, showHistory && s.favRowOn)}
+  >
+    <span aria-hidden="true" {...stylex.attrs(s.star)}>🕒</span>
+    Storico scansioni
+  </button>
 
   <button
     type="button"
@@ -288,6 +301,6 @@
     {...stylex.attrs(s.favRow, favouritesActive && s.favRowOn)}
   >
     <span aria-hidden="true" {...stylex.attrs(s.star)}>★</span>
-    Saved adverts
+    Annunci preferiti
   </button>
 </nav>

@@ -89,8 +89,8 @@
   const changedLabel = (...fs) => fs.some((f) => marks.has(f)) && s.labelChanged;
 
   const ENABLED = [
-    { value: true, label: 'Enabled' },
-    { value: false, label: 'Paused' },
+    { value: true, label: 'Attiva' },
+    { value: false, label: 'In pausa' },
   ];
 
   // Filters are read far less often than results, so the panel folds away. The
@@ -108,95 +108,95 @@
   }
 </script>
 
-<section aria-label="Search filters" {...stylex.attrs(ui.panel, s.editor)}>
+<section aria-label="Filtri di ricerca" {...stylex.attrs(ui.panel, s.editor)}>
   <header {...stylex.attrs(s.bar, !open && s.barBare)}>
-    <h2 {...stylex.attrs(s.h2)}>{isNew ? 'New search' : 'Filters'}</h2>
+    <h2 {...stylex.attrs(s.h2)}>{isNew ? 'Nuova ricerca' : 'Filtri'}</h2>
     <span {...stylex.attrs(s.state, (dirty || isNew) && s.stateUnsaved)}>
       {#if isNew}
-        not created yet
+        non ancora creata
       {:else if dirty}
-        {changed.length} unsaved change{changed.length === 1 ? '' : 's'}
+        {changed.length} modifica{changed.length === 1 ? '' : 'he'} non salvat{changed.length === 1 ? 'a' : 'e'}
       {:else}
-        all changes saved
+        tutto salvato
       {/if}
     </span>
     {#if !isNew}
       <button type="button" aria-expanded={open} onclick={toggle} {...stylex.attrs(ui.button, ui.quiet, s.fold)}>
-        {open ? 'Hide' : 'Show'} filters
+        {open ? 'Nascondi' : 'Mostra'} filtri
       </button>
     {/if}
     {#if isNew}
       <button type="button"  disabled={saving} onclick={onsave} {...stylex.attrs(ui.button, ui.primary)}>
-        {saving ? 'Creating…' : 'Create search'}
+        {saving ? 'Creo…' : 'Crea ricerca'}
       </button>
-      <button type="button" onclick={oncancel} disabled={saving} {...stylex.attrs(ui.button, ui.buttonHover)}>Cancel</button>
+      <button type="button" onclick={oncancel} disabled={saving} {...stylex.attrs(ui.button, ui.buttonHover)}>Annulla</button>
     {:else}
       <button type="button"  disabled={!dirty || saving} onclick={onsave} {...stylex.attrs(ui.button, ui.primary)}>
-        {saving ? 'Saving…' : 'Save'}
+        {saving ? 'Salvo…' : 'Salva'}
       </button>
-      <button type="button" disabled={!dirty || saving} onclick={onrevert} {...stylex.attrs(ui.button, ui.buttonHover)}>Revert</button>
+      <button type="button" disabled={!dirty || saving} onclick={onrevert} {...stylex.attrs(ui.button, ui.buttonHover)}>Annulla</button>
     {/if}
   </header>
 
   <div {...stylex.attrs(!open && s.folded)}>
   <div {...stylex.attrs(s.grid)}>
     <label {...stylex.attrs(ui.field, s.span2)}>
-      <span {...stylex.attrs(ui.label, changedLabel('name'))}>Name</span>
-      <input type="text" bind:value={draft.name} placeholder="what this search is for" {...stylex.attrs(ui.input)} />
+      <span {...stylex.attrs(ui.label, changedLabel('name'))}>Nome</span>
+      <input type="text" bind:value={draft.name} placeholder="a cosa serve questa ricerca" {...stylex.attrs(ui.input)} />
     </label>
 
     <label {...stylex.attrs(ui.field, s.span2)}>
-      <span {...stylex.attrs(ui.label, changedLabel('query'))}>Search terms</span>
+      <span {...stylex.attrs(ui.label, changedLabel('query'))}>Termini di ricerca</span>
       <input type="text" bind:value={draft.query} placeholder="optiplex micro, thinkcentre tiny" {...stylex.attrs(ui.input)} />
-      <span {...stylex.attrs(ui.hint)}>comma separated — every term is swept on each run</span>
+      <span {...stylex.attrs(ui.hint)}>separati da virgola: ogni termine viene cercato a ogni scansione</span>
     </label>
 
     <div {...stylex.attrs(ui.field)}>
-      <span {...stylex.attrs(ui.label, changedLabel('kind'))}>Looking for</span>
-      <Segmented options={KINDS} bind:value={draft.kind} label="Looking for" />
+      <span {...stylex.attrs(ui.label, changedLabel('kind'))}>Sto cercando</span>
+      <Segmented options={KINDS} bind:value={draft.kind} label="Sto cercando" />
     </div>
 
     <div {...stylex.attrs(ui.field)}>
-      <span {...stylex.attrs(ui.label, changedLabel('enabled'))}>Sweeps</span>
-      <Segmented options={ENABLED} bind:value={draft.enabled} label="Enabled" />
-      <span {...stylex.attrs(ui.hint)}>paused searches are skipped by "Scansiona tutti" and by the hourly schedule</span>
+      <span {...stylex.attrs(ui.label, changedLabel('enabled'))}>Scansioni</span>
+      <Segmented options={ENABLED} bind:value={draft.enabled} label="Attiva" />
+      <span {...stylex.attrs(ui.hint)}>le ricerche in pausa sono saltate da "Scansiona tutti" e dalla schedulazione oraria</span>
     </div>
 
     <label {...stylex.attrs(ui.field)}>
-      <span {...stylex.attrs(ui.label, changedLabel('minPrice'))}>Min price €</span>
+      <span {...stylex.attrs(ui.label, changedLabel('minPrice'))}>Prezzo min €</span>
       <input type="number" min="0" step="5" bind:value={draft.minPrice} {...stylex.attrs(ui.input)} />
     </label>
 
     <label {...stylex.attrs(ui.field)}>
-      <span {...stylex.attrs(ui.label, changedLabel('maxPrice'))}>Max price €</span>
+      <span {...stylex.attrs(ui.label, changedLabel('maxPrice'))}>Prezzo max €</span>
       <input type="number" min="0" step="10" bind:value={draft.maxPrice} {...stylex.attrs(ui.input)} />
     </label>
 
     <div {...stylex.attrs(ui.field, s.span2)}>
-      <span {...stylex.attrs(ui.label, changedLabel('sources'))}>Sources</span>
+      <span {...stylex.attrs(ui.label, changedLabel('sources'))}>Fonti</span>
       <ChipSelect options={SOURCES} bind:value={draft.sources} emptyLabel="none picked — this search will find nothing" />
     </div>
 
     <label {...stylex.attrs(ui.field)}>
-      <span {...stylex.attrs(ui.label, changedLabel('minReviews'))}>Min seller reviews</span>
+      <span {...stylex.attrs(ui.label, changedLabel('minReviews'))}>Recensioni minime venditore</span>
       <input type="number" min="0" step="1" bind:value={draft.minReviews} {...stylex.attrs(ui.input)} />
-      <span {...stylex.attrs(ui.hint)}>0 keeps sellers with no history</span>
+      <span {...stylex.attrs(ui.hint)}>0 tiene anche i venditori senza storico</span>
     </label>
   </div>
 
   <fieldset {...stylex.attrs(s.fieldset)}>
-    <legend {...stylex.attrs(s.legend)}>Where</legend>
+    <legend {...stylex.attrs(s.legend)}>Dove</legend>
     <div {...stylex.attrs(s.grid)}>
       <div {...stylex.attrs(ui.field, s.span2)}>
-        <span {...stylex.attrs(ui.label, changedLabel('place', 'lat'))}>Near</span>
+        <span {...stylex.attrs(ui.label, changedLabel('place', 'lat'))}>Vicino a</span>
         <PlaceField bind:place={draft.place} bind:lat={draft.lat} bind:lon={draft.lon} />
       </div>
 
       <label {...stylex.attrs(ui.field)}>
-        <span {...stylex.attrs(ui.label, changedLabel('radiusKm'))}>Radius</span>
+        <span {...stylex.attrs(ui.label, changedLabel('radiusKm'))}>Raggio</span>
         <select bind:value={draft.radiusKm} {...stylex.attrs(ui.input)}>
           {#each RADII as km (km)}
-            <option value={km}>{km === 0 ? 'No distance limit' : `${km} km`}</option>
+            <option value={km}>{km === 0 ? 'Nessun limite di distanza' : `${km} km`}</option>
           {/each}
         </select>
         {#if draft.radiusKm > 0 && draft.lat == null}
@@ -206,29 +206,29 @@
 
       {#if draft.radiusKm > 0}
         <label {...stylex.attrs(ui.field)}>
-          <span {...stylex.attrs(ui.label, changedLabel('includeUnlocated'))}>Adverts with no location</span>
+          <span {...stylex.attrs(ui.label, changedLabel('includeUnlocated'))}>Annunci senza posizione</span>
           <span {...stylex.attrs(s.checkrow)}>
             <input
               type="checkbox"
               checked={draft.includeUnlocated}
               onchange={(e) => (draft.includeUnlocated = e.currentTarget.checked)}
             />
-            <span>Keep them anyway</span>
+            <span>Tienili lo stesso</span>
           </span>
           <span {...stylex.attrs(ui.hint)}>
-            Vinted adverts almost never state a location. Untick this and a {draft.radiusKm} km
+            Gli annunci Vinted quasi mai indicano la posizione. Untick this and a {draft.radiusKm} km
             radius will drop nearly every Vinted result along with the genuinely distant ones.
           </span>
         </label>
       {/if}
 
       <div {...stylex.attrs(ui.field)} style="grid-column: 1 / -1">
-        <span {...stylex.attrs(ui.label, changedLabel('chassis'))}>Countries</span>
+        <span {...stylex.attrs(ui.label, changedLabel('chassis'))}>Paesi</span>
         <ChipSelect
           options={countryOptions}
           bind:value={draft.countries}
           filterable
-          filterPlaceholder="filter countries…"
+          filterPlaceholder="filtra paesi…"
           emptyLabel="none picked — all of Europe is searched"
         />
       </div>
@@ -237,61 +237,61 @@
 
   {#if draft.kind === 'COMPUTER'}
     <fieldset {...stylex.attrs(s.fieldset)}>
-      <legend {...stylex.attrs(s.legend)}>Machine</legend>
+      <legend {...stylex.attrs(s.legend)}>Macchina</legend>
       <div {...stylex.attrs(s.grid)}>
         <div {...stylex.attrs(ui.field)}>
-          <span {...stylex.attrs(ui.label, changedLabel('vendor'))}>Size</span>
+          <span {...stylex.attrs(ui.label, changedLabel('vendor'))}>Formato</span>
           <ChipSelect options={CHASSIS} bind:value={draft.chassis} emptyLabel="any size, stated or not" />
         </div>
 
         <div {...stylex.attrs(ui.field)}>
-          <span {...stylex.attrs(ui.label, changedLabel('brands'))}>Processor vendor</span>
-          <Segmented options={VENDORS} bind:value={draft.vendor} label="Processor vendor" />
+          <span {...stylex.attrs(ui.label, changedLabel('brands'))}>Produttore CPU</span>
+          <Segmented options={VENDORS} bind:value={draft.vendor} label="Produttore CPU" />
         </div>
 
         <div {...stylex.attrs(ui.field)}>
-          <span {...stylex.attrs(ui.label, changedLabel('cpuTiers'))}>Brands</span>
-          <ChipSelect options={BRANDS} bind:value={draft.brands} emptyLabel="any brand" />
+          <span {...stylex.attrs(ui.label, changedLabel('cpuTiers'))}>Marche</span>
+          <ChipSelect options={BRANDS} bind:value={draft.brands} emptyLabel="qualsiasi marca" />
         </div>
 
         <div {...stylex.attrs(ui.field)}>
-          <span {...stylex.attrs(ui.label, changedLabel('minGen'))}>Processor tier</span>
-          <ChipSelect options={CPU_TIERS} bind:value={draft.cpuTiers} emptyLabel="any processor" />
+          <span {...stylex.attrs(ui.label, changedLabel('minGen'))}>Fascia CPU</span>
+          <ChipSelect options={CPU_TIERS} bind:value={draft.cpuTiers} emptyLabel="qualsiasi processore" />
         </div>
 
         <label {...stylex.attrs(ui.field)}>
-          <span {...stylex.attrs(ui.label, changedLabel('minYear'))}>Min Intel generation</span>
+          <span {...stylex.attrs(ui.label, changedLabel('minYear'))}>Generazione Intel minima</span>
           <input type="number" min="0" max="20" step="1" bind:value={draft.minGen} {...stylex.attrs(ui.input)} />
-          <span {...stylex.attrs(ui.hint)}>0 = any. AMD machines carry no generation.</span>
+          <span {...stylex.attrs(ui.hint)}>0 = qualsiasi. Le macchine AMD non hanno generazione.</span>
         </label>
 
         <label {...stylex.attrs(ui.field)}>
-          <span {...stylex.attrs(ui.label, changedLabel('minRam'))}>Min launch year</span>
+          <span {...stylex.attrs(ui.label, changedLabel('minRam'))}>Anno minimo</span>
           <input type="number" min="0" max="2035" step="1" bind:value={draft.minYear} {...stylex.attrs(ui.input)} />
-          <span {...stylex.attrs(ui.hint)}>0 = any. Holds Intel and Ryzen to one rule.</span>
+          <span {...stylex.attrs(ui.hint)}>0 = qualsiasi. Vale per Intel e Ryzen insieme.</span>
         </label>
 
         <label {...stylex.attrs(ui.field)}>
-          <span {...stylex.attrs(ui.label, changedLabel('minStorage'))}>Min memory GB</span>
+          <span {...stylex.attrs(ui.label, changedLabel('minStorage'))}>Memoria minima GB</span>
           <input type="number" min="0" step="4" bind:value={draft.minRam} {...stylex.attrs(ui.input)} />
-          <span {...stylex.attrs(ui.hint)}>above 0, adverts that never stated memory are dropped</span>
+          <span {...stylex.attrs(ui.hint)}>sopra 0, gli annunci che non indicano la memoria vengono scartati</span>
         </label>
 
         <label {...stylex.attrs(ui.field)}>
-          <span {...stylex.attrs(ui.label, changedLabel('minRam'))}>Min storage GB</span>
+          <span {...stylex.attrs(ui.label, changedLabel('minRam'))}>Disco minimo GB</span>
           <input type="number" min="0" step="64" bind:value={draft.minStorage} {...stylex.attrs(ui.input)} />
-          <span {...stylex.attrs(ui.hint)}>any drive type, not only SSD</span>
+          <span {...stylex.attrs(ui.hint)}>qualsiasi tipo di disco, non solo SSD</span>
         </label>
       </div>
     </fieldset>
   {:else if draft.kind === 'MEMORY'}
     <fieldset {...stylex.attrs(s.fieldset)}>
-      <legend {...stylex.attrs(s.legend)}>Memory</legend>
+      <legend {...stylex.attrs(s.legend)}>Memoria</legend>
       <div {...stylex.attrs(s.grid)}>
         <label {...stylex.attrs(ui.field)}>
-          <span {...stylex.attrs(ui.label)}>Min kit size GB</span>
+          <span {...stylex.attrs(ui.label)}>Kit minimo GB</span>
           <input type="number" min="0" step="4" bind:value={draft.minRam} {...stylex.attrs(ui.input)} />
-          <span {...stylex.attrs(ui.hint)}>the total across every stick in the kit</span>
+          <span {...stylex.attrs(ui.hint)}>il totale di tutti i banchi del kit</span>
         </label>
       </div>
     </fieldset>

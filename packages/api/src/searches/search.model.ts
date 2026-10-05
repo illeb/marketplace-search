@@ -71,3 +71,33 @@ export class RunResult {
   @Field(() => Int) offTopic!: number;
   @Field(() => Int) matched!: number;
 }
+
+/** Where a running scan has got to. Absent when nothing is running. */
+@ObjectType()
+export class RunProgress {
+  @Field(() => Int) searchId!: number;
+  /** 'collect' while reading a marketplace, then 'details', then 'match'. */
+  @Field() phase!: string;
+  @Field(() => Int) step!: number;
+  @Field(() => Int) steps!: number;
+  /** The marketplace being read, or what the later phases are doing. */
+  @Field() label!: string;
+  @Field(() => Int) found!: number;
+  @Field() startedAt!: string;
+}
+
+@ObjectType()
+export class RunRecord {
+  @Field(() => Int) id!: number;
+  @Field(() => Int, { nullable: true }) searchId?: number;
+  @Field({ nullable: true }) searchName?: string;
+  /** 'schedule' for the hourly pass, 'sweep' for the button, 'manual' for one search. */
+  @Field() trigger!: string;
+  @Field() startedAt!: string;
+  /** Null while running, or if the process died mid-scan. */
+  @Field({ nullable: true }) finishedAt?: string;
+  @Field(() => Int, { nullable: true }) found?: number;
+  @Field(() => Int, { nullable: true }) offTopic?: number;
+  @Field(() => Int, { nullable: true }) matched?: number;
+  @Field({ nullable: true }) error?: string;
+}

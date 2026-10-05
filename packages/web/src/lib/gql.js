@@ -62,6 +62,18 @@ export const SET_FAVOURITE = gql`
   }
 `;
 
+export const RUN_PROGRESS = gql`
+  query RunProgress { runProgress { searchId phase step steps label found startedAt } }
+`;
+
+export const RUN_HISTORY = gql`
+  query RunHistory($limit: Int) {
+    runHistory(limit: $limit) {
+      id searchId searchName trigger startedAt finishedAt found offTopic matched error
+    }
+  }
+`;
+
 export const PLACES    = gql`query Places($q: String!) { places(q: $q) { label lat lon country } }`;
 export const COUNTRIES = gql`query Countries { countries { code name } }`;
 export const STATS     = gql`query Stats { stats { listings live sold sellers searches } }`;
@@ -101,6 +113,8 @@ export const api = {
   listings:  (searchId) => q(LISTINGS, { searchId }).then((d) => d.listings),
   preview:   (searchId, input) => q(PREVIEW, { searchId, input }).then((d) => d.preview),
   favourites: () => q(FAVOURITES).then((d) => d.favourites),
+  runProgress: () => q(RUN_PROGRESS).then((d) => d.runProgress),
+  runHistory: (limit) => q(RUN_HISTORY, { limit }).then((d) => d.runHistory),
   setFavourite: (listingId, value) => m(SET_FAVOURITE, { listingId, value }).then((d) => d.setFavourite),
   places:    (s) => q(PLACES, { q: s }).then((d) => d.places),
   countries: () => q(COUNTRIES).then((d) => d.countries),

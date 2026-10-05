@@ -145,6 +145,25 @@
       borderStyle: 'solid',
       borderColor: t.line,
     },
+    thumbWrap: { position: 'relative', flexGrow: 0, flexShrink: 0, lineHeight: 0 },
+    // the enlarged copy floats out of the cell, so the row keeps its height
+    zoom: {
+      position: 'absolute',
+      insetInlineStart: 0,
+      top: 0,
+      zIndex: 60,
+      width: 260,
+      height: 260,
+      objectFit: 'contain',
+      padding: 6,
+      backgroundColor: t.surface,
+      borderWidth: 1,
+      borderStyle: 'solid',
+      borderColor: t.lineStrong,
+      borderRadius: t.radiusSm,
+      boxShadow: t.shadow,
+      pointerEvents: 'none',
+    },
     machineText: {
       minWidth: 0,
       flexGrow: 1,
@@ -226,10 +245,13 @@
 <script>
   import {
     money, gb, distance, percent, cpuLabel, storageDetail,
-    isMemory, isMachine, isNew, ageLabel, sellerTone, stated, threads, modelLabel,
+    isMemory, isMachine, isNew, ageLabel, addedAt, sellerTone, stated, threads, modelLabel,
   } from '../lib/format.js';
 
   let { rows, search, onfavourite } = $props();
+
+  // which thumbnail is enlarged under the pointer
+  let zoomed = $state(null);
 
   // Default direction per column: cheapest first, newest first, best-reviewed first.
   const DEFAULT_DIR = { price: 'asc', year: 'desc', reviews: 'desc' };
@@ -268,7 +290,7 @@
   </button>
 {/snippet}
 
-{#snippet notStated(text = 'not stated')}
+{#snippet notStated(text = 'non indicato')}
   <span {...stylex.attrs(ui.unstated)}>{text}</span>
 {/snippet}
 
@@ -276,61 +298,73 @@
   <table {...stylex.attrs(s.table)}>
     <thead {...stylex.attrs(s.thead)}>
       <tr>
-        <th scope="col" {...stylex.attrs(s.th)} aria-sort={ariaSort('price')}>{@render sortButton('Price', 'price')}</th>
-        <th scope="col" {...stylex.attrs(s.th, s.thPlain)}>Machine</th>
-        <th scope="col" {...stylex.attrs(s.th)} aria-sort={ariaSort('year')}>{@render sortButton('Specification', 'year')}</th>
-        <th scope="col" {...stylex.attrs(s.th)} aria-sort={ariaSort('reviews')}>{@render sortButton('Seller', 'reviews')}</th>
-        <th scope="col" {...stylex.attrs(s.th, s.thPlain)}>Where</th>
+        <th scope="col" {...stylex.attrs(s.th)} aria-sort={ariaSort('price')}>{@render sortButton('Prezzo', 'price')}</th>
+        <th scope="col" {...stylex.attrs(s.th, s.thPlain)}>Macchina</th>
+        <th scope="col" {...stylex.attrs(s.th)} aria-sort={ariaSort('year')}>{@render sortButton('Specifiche', 'year')}</th>
+        <th scope="col" {...stylex.attrs(s.th)} aria-sort={ariaSort('reviews')}>{@render sortButton('Venditore', 'reviews')}</th>
+        <th scope="col" {...stylex.attrs(s.th, s.thPlain)}>Dove</th>
       </tr>
     </thead>
     <tbody {...stylex.attrs(s.tbody)}>
       {#each sorted as r (r.id)}
         <tr {...stylex.attrs(s.tr, !!r.soldAt && s.trSold)}>
-          <td data-label="Price" {...stylex.attrs(s.td, s.cPrice, s.tdPriceMobile)}>
+          <td data-label="Prezzo" {...stylex.attrs(s.td, s.cPrice, s.tdPriceMobile)}>
             <span {...stylex.attrs(ui.mono, s.price)}>{money(r.price)}</span>
             {#if stated(r.priceMax) && r.priceMax > r.price}
-              <span {...stylex.attrs(s.was)}>was {money(r.priceMax)}</span>
+              <span {...stylex.attrs(s.was)}>prima {money(r.priceMax)}</span>
             {/if}
           </td>
 
-          <td data-label="Machine" {...stylex.attrs(s.td, s.cMachine)}>
+          <td data-label="Macchina" {...stylex.attrs(s.td, s.cMachine)}>
             <div {...stylex.attrs(s.machineRow)}>
               {#if r.imageUrl}
-                <img
-                  src={r.imageUrl}
-                  alt=""
-                  loading="lazy"
-                  decoding="async"
-                  referrerpolicy="no-referrer"
-                  onerror={(e) => (e.currentTarget.hidden = true)}
-                  {...stylex.attrs(s.thumb)}
-                />
+                <span
+                  role="presentation"
+                  onmouseenter={() => (zoomed = r.id)}
+                  onmouseleave={() => (zoomed = null)}
+                  {...stylex.attrs(s.thumbWrap)}
+                >
+                  <img
+                    src={r.imageUrl}
+                    alt=""
+                    loading="lazy"
+                    decoding="async"
+                    referrerpolicy="no-referrer"
+                    onerror={(e) => (e.currentTarget.hidden = true)}
+                    {...stylex.attrs(s.thumb)}
+                  />
+                  {#if zoomed === r.id}
+                    <img src={r.imageUrl} alt="" referrerpolicy="no-referrer" {...stylex.attrs(s.zoom)} />
+                  {/if}
+                </span>
               {/if}
               <button
                 type="button"
                 onclick={() => onfavourite?.(r)}
                 aria-pressed={!!r.isFavourite}
-                title={r.isFavourite ? 'Remove from saved adverts' : 'Save this advert'}
+                title={r.isFavourite ? 'Togli dai preferiti' : 'Metti tra i preferiti'}
                 {...stylex.attrs(s.star, r.isFavourite && s.starOn)}
               >{r.isFavourite ? '★' : '☆'}</button>
               <div {...stylex.attrs(s.machineText)}>
               <a href={r.url} target="_blank" rel="noopener noreferrer" {...stylex.attrs(s.title)}>
-              {r.title || '(untitled advert)'}
+              {r.title || '(annuncio senza titolo)'}
             </a>
             <div {...stylex.attrs(s.chips)}>
-              {#if isNew(r) && !r.soldAt}<span {...stylex.attrs(s.chip, s.chipNew)}>new today</span>{/if}
-              {#if r.soldAt}<span {...stylex.attrs(s.chip, s.chipSold)}>sold</span>{/if}
+              {#if isNew(r) && !r.soldAt}<span {...stylex.attrs(s.chip, s.chipNew)}>nuovo oggi</span>{/if}
+              {#if r.soldAt}<span {...stylex.attrs(s.chip, s.chipSold)}>venduto</span>{/if}
               {#if r.chassis && isMachine(r)}<span {...stylex.attrs(s.chip)}>{r.chassis}</span>{/if}
               {#if r.vendor}<span {...stylex.attrs(s.chip)}>{r.vendor}</span>{/if}
               {#if modelLabel(r)}<span {...stylex.attrs(s.chip)}>{modelLabel(r)}</span>{/if}
               {#each r.cautions ?? [] as c (c)}<span {...stylex.attrs(s.chip, s.chipCaution)}>{c}</span>{/each}
             </div>
-            <div {...stylex.attrs(ui.hint, s.hintTop)}>{ageLabel(r.ageDays)}</div>
+            <div {...stylex.attrs(ui.hint, s.hintTop)} title={addedAt(r) ?? ''}>
+                    aggiunto {addedAt(r) ?? ageLabel(r.ageDays)}
+                  </div>
               </div>
             </div>
           </td>
 
-          <td data-label="Specification" {...stylex.attrs(s.td, s.cSpec)}>
+          <td data-label="Specifiche" {...stylex.attrs(s.td, s.cSpec)}>
             {#if isMemory(r)}
               <div {...stylex.attrs(s.line)}>
                 <span {...stylex.attrs(s.k)}>Kit</span>
@@ -339,11 +373,11 @@
                 {:else}{@render notStated()}{/if}
               </div>
               <div {...stylex.attrs(s.line)}>
-                <span {...stylex.attrs(s.k)}>Total</span>
+                <span {...stylex.attrs(s.k)}>Totale</span>
                 {#if gb(r.memTotal)}<span {...stylex.attrs(ui.mono)}>{gb(r.memTotal)}</span>{:else}{@render notStated()}{/if}
               </div>
               <div {...stylex.attrs(s.line)}>
-                <span {...stylex.attrs(s.k)}>Speed</span>
+                <span {...stylex.attrs(s.k)}>Freq.</span>
                 {#if stated(r.memSpeed)}<span {...stylex.attrs(ui.mono)}>{r.memSpeed} MHz</span>{:else}{@render notStated()}{/if}
               </div>
             {:else if isMachine(r)}
@@ -358,7 +392,7 @@
                 {#if gb(r.ramGb)}<span {...stylex.attrs(ui.mono)}>{gb(r.ramGb)}</span>{:else}{@render notStated()}{/if}
               </div>
               <div {...stylex.attrs(s.line)}>
-                <span {...stylex.attrs(s.k)}>Disk</span>
+                <span {...stylex.attrs(s.k)}>Disco</span>
                 {#if gb(r.storageGb)}
                   <span {...stylex.attrs(ui.mono)}>{gb(r.storageGb)}</span>
                 {:else}{@render notStated()}{/if}
@@ -367,43 +401,43 @@
                 <div {...stylex.attrs(ui.hint, s.hintTop)}>
                   {[
                     storageDetail(r),
-                    stated(r.year) ? `${r.year} model` : null,
-                    stated(r.generation) ? `gen ${r.generation}` : null,
+                    stated(r.year) ? `modello ${r.year}` : null,
+                    stated(r.generation) ? `${r.generation}ª gen` : null,
                     threads(r),
                   ].filter(Boolean).join(' · ')}
                 </div>
               {/if}
             {:else}
               <div {...stylex.attrs(s.line)}>
-                <span {...stylex.attrs(s.k)}>Condition</span>
+                <span {...stylex.attrs(s.k)}>Stato</span>
                 {#if r.condition}<span>{r.condition}</span>{:else}{@render notStated()}{/if}
               </div>
             {/if}
           </td>
 
-          <td data-label="Seller" {...stylex.attrs(s.td, s.cSeller, s.tdHalf)}>
+          <td data-label="Venditore" {...stylex.attrs(s.td, s.cSeller, s.tdHalf)}>
             <div {...stylex.attrs(s.trust)}>
-              <b {...stylex.attrs(s.trustB, TRUST[sellerTone(r)])}>{r.reviews ?? '?'} review{r.reviews === 1 ? '' : 's'}</b>
+              <b {...stylex.attrs(s.trustB, TRUST[sellerTone(r)])}>{r.reviews ?? '?'} recension{r.reviews === 1 ? 'e' : 'i'}</b>
               {#if percent(r.positivePct)}
                 <span {...stylex.attrs(s.trustPct)}>{percent(r.positivePct)} positive</span>
               {:else}
-                <span {...stylex.attrs(ui.unstated)}>no score</span>
+                <span {...stylex.attrs(ui.unstated)}>nessun punteggio</span>
               {/if}
             </div>
-            {#if stated(r.reports)}<div {...stylex.attrs(ui.hint, s.hintTop)}>{r.reports} reports</div>{/if}
+            {#if stated(r.reports)}<div {...stylex.attrs(ui.hint, s.hintTop)}>{r.reports} segnalazioni</div>{/if}
           </td>
 
-          <td data-label="Where" {...stylex.attrs(s.td, s.cWhere, s.tdHalf)}>
+          <td data-label="Dove" {...stylex.attrs(s.td, s.cWhere, s.tdHalf)}>
             <div {...stylex.attrs(s.source)}>{r.source}</div>
             {#if where(r)}
               <div>{where(r)}</div>
             {:else}
-              <div>{@render notStated('location unknown')}</div>
+              <div>{@render notStated('posizione non indicata')}</div>
             {/if}
             {#if distance(r.distanceKm)}
-              <div {...stylex.attrs(ui.hint, s.hintTop)}>{distance(r.distanceKm)} away</div>
+              <div {...stylex.attrs(ui.hint, s.hintTop)}>{distance(r.distanceKm)} di distanza</div>
             {:else if hasCentre && where(r)}
-              <div {...stylex.attrs(ui.hint, s.hintTop)}>{@render notStated('distance unknown')}</div>
+              <div {...stylex.attrs(ui.hint, s.hintTop)}>{@render notStated('distanza non nota')}</div>
             {/if}
           </td>
         </tr>

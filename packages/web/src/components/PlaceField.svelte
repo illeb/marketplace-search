@@ -148,7 +148,7 @@
       aria-controls={listId}
       aria-autocomplete="list"
       aria-activedescendant={active >= 0 ? `${listId}-${active}` : undefined}
-      placeholder="start typing a town"
+      placeholder="inizia a scrivere una città"
       value={place}
       oninput={onInput}
       onkeydown={onKeydown}
@@ -157,7 +157,7 @@
       {...stylex.attrs(ui.input, s.input)}
     />
     {#if place}
-      <button type="button" onclick={clearPlace} title="clear the centre"
+      <button type="button" onclick={clearPlace} title="azzera il centro"
         {...stylex.attrs(ui.button, ui.quiet, s.clear)}>×</button>
     {/if}
   </div>
@@ -178,12 +178,12 @@
   {/if}
 
   {#if busy}
-    <span {...stylex.attrs(ui.hint)}>looking…</span>
+    <span {...stylex.attrs(ui.hint)}>cerco…</span>
   {:else if place && lat == null}
-    <span {...stylex.attrs(ui.hint, s.warnHint)}>no coordinates — pick a town from the list for a radius to work</span>
+    <span {...stylex.attrs(ui.hint, s.warnHint)}>nessuna coordinata: scegli una città dalla lista perché il raggio funzioni</span>
   {:else if lat != null}
     <span {...stylex.attrs(ui.hint, ui.mono)}>{lat.toFixed(3)}, {lon.toFixed(3)}</span>
   {:else}
-    <span {...stylex.attrs(ui.hint)}>optional — sets the centre for the radius and biases Wallapop</span>
+    <span {...stylex.attrs(ui.hint)}>facoltativo: fissa il centro del raggio e orienta Wallapop</span>
   {/if}
 </div>

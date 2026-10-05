@@ -27,7 +27,8 @@ export class SweepService implements OnModuleInit {
   }
 
   private async run(): Promise<void> {
-    try { await sweep(); }
+    // tagged so the history can tell a scheduled pass from a button press
+    try { await sweep({ trigger: 'schedule' }); }
     catch (e) { this.log.error(`sweep failed: ${(e as Error).message}`); }
   }
 }

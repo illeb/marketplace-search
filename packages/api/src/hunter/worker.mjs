@@ -23,7 +23,52 @@ async function reputation(source, sellerId) {
     .get(source, String(sellerId)) || null;
 }
 
-export async function runSearch(search) {
+/* ---- progress and history ------------------------------------------------
+ * A run reads three marketplaces one after another and takes minutes, so the
+ * interface needs to say where it has got to. Progress is in memory, because it
+ * is worthless once the process restarts; the history is a table, because
+ * "did the hourly sweep actually fire" is a question you can only answer after
+ * the fact.
+ * ------------------------------------------------------------------------ */
+const progress = new Map();   // search id -> {phase, step, steps, label, startedAt}
+
+export const progressOf = (id) => progress.get(Number(id)) ?? null;
+export const allProgress = () => [...progress.entries()].map(([searchId, p]) => ({ searchId, ...p }));
+
+const setProgress = (id, patch) => {
+  const now = progress.get(id) ?? { startedAt: new Date().toISOString() };
+  progress.set(id, { ...now, ...patch });
+};
+
+/** Open a history row; the id comes back so the end can be written onto it. */
+function beginRun(searchId, trigger) {
+  const info = db.prepare(
+    `INSERT INTO sweep_runs (search_id, trigger, started_at) VALUES (?,?,datetime('now'))`,
+  ).run(searchId, trigger);
+  return Number(info.lastInsertRowid);
+}
+
+function endRun(runId, { found = 0, offTopic = 0, matched = 0, error = null } = {}) {
+  db.prepare(`UPDATE sweep_runs SET finished_at=datetime('now'),
+    found=?, off_topic=?, matched=?, error=? WHERE id=?`)
+    .run(found, offTopic, matched, error, runId);
+}
+
+export async function runSearch(search, { trigger = 'manual' } = {}) {
+  const runId = beginRun(search.id, trigger);
+  try {
+    const out = await runSearchInner(search);
+    endRun(runId, out);
+    return out;
+  } catch (e) {
+    endRun(runId, { error: String(e?.message ?? e) });
+    throw e;
+  } finally {
+    progress.delete(Number(search.id));
+  }
+}
+
+async function runSearchInner(search) {
   const started = Date.now();
   // Anchor staleness to the moment the sweep began, or long sweeps mark their
   // own early results as missing.
@@ -41,7 +86,14 @@ export async function runSearch(search) {
 
   // ---- 1. collect ----------------------------------------------------------
   const pool = new Map();                       // url -> raw record
+  // the collect pass is most of the wall clock, so it drives the step counter
+  const steps = wanted.length + 2;
+  let step = 0;
   for (const name of wanted) {
+    step += 1;
+    setProgress(Number(search.id), {
+      phase: 'collect', step, steps, label: name, found: pool.size,
+    });
     // Subito is an Italian marketplace: skip it when Italy is not in scope.
     if (name === 'subito' && !wholeEurope && !wantedCountries.includes('IT')) {
       log('  subito: skipped, Italy not in scope'); continue;
@@ -66,6 +118,7 @@ export async function runSearch(search) {
       }
     }
     log(`  ${name}: ${got} raw across ${terms.length} term(s)`);
+    setProgress(Number(search.id), { found: pool.size });
   }
 
   // ---- 2. relevance --------------------------------------------------------
@@ -80,6 +133,10 @@ export async function runSearch(search) {
     if (spec) candidates.push({ r, spec });
   }
   if (offTopic) log(`  dropped ${offTopic} off-topic`);
+
+  setProgress(Number(search.id), {
+    phase: 'details', step: steps - 1, steps, label: 'reading adverts', found: pool.size,
+  });
 
   // ---- 3. detail fetches, cheapest first ----------------------------------
   // Vinted returns titles only. Spend the budget on the cheapest unresolved
@@ -105,6 +162,10 @@ export async function runSearch(search) {
     }
     if (fetched) log(`  ${fetched} detail fetches (cheapest first)`);
   }
+
+  setProgress(Number(search.id), {
+    phase: 'match', step: steps, steps, label: 'scoring', found: pool.size,
+  });
 
   // ---- 4. store, score, match ---------------------------------------------
   // Coordinates are only worth resolving when the search actually filters on
@@ -144,11 +205,15 @@ export async function runSearch(search) {
   return { found: pool.size, offTopic, matched };
 }
 
-export async function sweep() {
+export async function sweep({ trigger = 'sweep' } = {}) {
   const searches = db.prepare('SELECT * FROM searches WHERE enabled = 1 ORDER BY id').all();
   if (!searches.length) { log('no enabled searches'); return; }
   log(`sweeping ${searches.length} search(es)`);
-  for (const s of searches) { log(`> ${s.name}`); await runSearch(s); }
+  for (const s of searches) {
+    log(`> ${s.name}`);
+    try { await runSearch(s, { trigger }); }
+    catch (e) { log(`  ${s.name} failed: ${e.message}`); }
+  }
   log('sweep complete');
 }
 

@@ -121,6 +121,22 @@ addColumn('specs', 'year', 'INTEGER');
 // thumbnail from the source listing; all three adapters supply one
 addColumn('listings', 'image_url', 'TEXT');
 
+// Every scan, so "did the hourly schedule actually fire" has an answer. Only
+// last_run_at existed before, which is a single timestamp and says nothing about
+// what happened between two of them.
+db.exec(`
+CREATE TABLE IF NOT EXISTS sweep_runs (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  search_id INTEGER,
+  trigger TEXT,                  -- 'schedule' | 'sweep' | 'manual'
+  started_at TEXT,
+  finished_at TEXT,              -- null while running, or if the process died
+  found INTEGER, off_topic INTEGER, matched INTEGER,
+  error TEXT
+);
+CREATE INDEX IF NOT EXISTS idx_runs_started ON sweep_runs(started_at);
+`);
+
 // Saved adverts. Independent of any search: deleting a search, or the advert
 // going stale, must not lose them.
 db.exec(`

@@ -1,7 +1,9 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { db } from '../hunter/db.mjs';
-import { runSearch, sweep, refilter, matchingIds } from '../hunter/worker.mjs';
-import { Search, SearchInput, SearchKind, Vendor, RunResult } from './search.model.js';
+import { runSearch, sweep, refilter, matchingIds, allProgress } from '../hunter/worker.mjs';
+import {
+  Search, SearchInput, SearchKind, Vendor, RunResult, RunProgress, RunRecord,
+} from './search.model.js';
 
 /** The database keeps csv strings and snake_case; the schema wants arrays and
  *  camelCase. All of that translation lives here and nowhere else. */
@@ -150,6 +152,39 @@ export class SearchesService {
     if (!row) throw new NotFoundException(`no search ${id}`);
     const r = await runSearch(row);
     return { found: r.found, offTopic: r.offTopic, matched: r.matched };
+  }
+
+  /** Scans in flight right now. Empty when nothing is running. */
+  progress(): RunProgress[] {
+    return allProgress().map((p: any) => ({
+      searchId: p.searchId,
+      phase: p.phase ?? 'collect',
+      step: p.step ?? 0,
+      steps: p.steps ?? 0,
+      label: p.label ?? '',
+      found: p.found ?? 0,
+      startedAt: p.startedAt,
+    }));
+  }
+
+  /** Recent scans, newest first. This is what says whether the hourly pass ran. */
+  history(limit = 50): RunRecord[] {
+    return (db.prepare(`
+      SELECT r.*, s.name AS search_name FROM sweep_runs r
+      LEFT JOIN searches s ON s.id = r.search_id
+      ORDER BY r.started_at DESC, r.id DESC LIMIT ?`).all(limit) as any[])
+      .map((r) => ({
+        id: r.id,
+        searchId: r.search_id ?? undefined,
+        searchName: r.search_name ?? undefined,
+        trigger: r.trigger ?? 'manual',
+        startedAt: r.started_at,
+        finishedAt: r.finished_at ?? undefined,
+        found: r.found ?? undefined,
+        offTopic: r.off_topic ?? undefined,
+        matched: r.matched ?? undefined,
+        error: r.error ?? undefined,
+      }));
   }
 
   /** Fires every enabled search and returns immediately. */

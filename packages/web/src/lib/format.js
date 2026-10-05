@@ -1,15 +1,16 @@
-// Rendering rules shared by the table.
+// Regole di resa condivise dalla tabella.
 //
-// The central one: a zero or null in ramGb, storageGb or distanceKm means
-// the advert never said, not that the machine has none and not that the seller
-// is next door. Those read as "not stated" / "location unknown", never as 0.
+// La più importante: uno zero o un null in ramGb, storageGb o distanceKm vuol
+// dire che l'annuncio non l'ha detto, non che la macchina non ne abbia e non
+// che il venditore sia dietro l'angolo. Si leggono "non indicato" e "posizione
+// non indicata", mai 0.
 
 export const stated = (n) => n != null && Number(n) > 0;
 
 export const money = (n) =>
   n == null || Number.isNaN(Number(n))
     ? '—'
-    : `${Number(n).toLocaleString(undefined, { maximumFractionDigits: 0 })} €`;
+    : `${Number(n).toLocaleString('it-IT', { maximumFractionDigits: 0 })} €`;
 
 export const gb = (n) => (stated(n) ? `${Number(n)} GB` : null);
 
@@ -17,16 +18,16 @@ export const distance = (km) => (km == null ? null : `${Math.round(km)} km`);
 
 export const percent = (p) => (p == null ? null : `${Math.round(p)}%`);
 
-/** Processor as the advert's words allow: "i5-8500", "Ryzen 5", or nothing. */
+/** Processore per quanto lo consentono le parole dell'annuncio. */
 export function cpuLabel(row) {
   if (!row.cpu) return null;
   return row.cpuNum ? `${row.cpu}-${row.cpuNum}` : row.cpu;
 }
 
 /**
- * Brand and model as a chip. HP models are stored as slugs — "prodesk400g3" —
- * so the word, the number and the generation get their spaces back. Lenovo's
- * "m710q" and Dell's "3050" are already as short as they go.
+ * Marca e modello come chip. I modelli HP sono salvati come slug, "prodesk400g3",
+ * quindi parola, numero e generazione si riprendono i loro spazi. "m710q" di
+ * Lenovo e "3050" di Dell sono già corti quanto basta.
  */
 export function modelLabel(row) {
   const raw = String(row.model || '');
@@ -37,10 +38,10 @@ export function modelLabel(row) {
   return [row.family, pretty].filter(Boolean).join(' ') || null;
 }
 
-/** The core/thread count, where the backend uses an em dash to mean unknown. */
-export const threads = (row) => (row.threads && row.threads !== '\u2014' ? row.threads : null);
+/** Core e thread, dove il backend usa una lineetta per dire "non si sa". */
+export const threads = (row) => (row.threads && row.threads !== '—' ? row.threads : null);
 
-/** How a row describes its drives, when it says anything at all. */
+/** Come l'annuncio descrive i dischi, quando dice qualcosa. */
 export function storageDetail(row) {
   const bits = [];
   if (stated(row.ssdGb)) bits.push(`${row.ssdGb} GB SSD`);
@@ -48,16 +49,16 @@ export function storageDetail(row) {
   return bits.length ? bits.join(' + ') : null;
 }
 
-/** True when this row is a memory kit rather than a machine. */
-export const isMemory = (row) => stated(row.memTotal) || stated(row.mem_sticks);
+/** Vero quando la riga è un kit di memoria e non una macchina. */
+export const isMemory = (row) => stated(row.memTotal) || stated(row.memSticks);
 
-/** True when this row carries any machine specification at all. */
+/** Vero quando la riga porta una qualsiasi specifica da macchina. */
 export const isMachine = (row) => !isMemory(row) && !!(row.family || row.cpu || row.chassis);
 
 /**
- * Did the advert state the specification? Used by the "specs stated" view
- * filter. A memory kit has to state its total; a machine has to state both its
- * memory and its storage. Anything with no specifications to state passes.
+ * L'annuncio ha indicato le specifiche? Lo usa il filtro di vista. Un kit di
+ * memoria deve indicare il totale, una macchina sia memoria sia disco. Quello
+ * che non ha specifiche da indicare passa.
  */
 export function specsStated(row) {
   if (isMemory(row)) return stated(row.memTotal);
@@ -65,31 +66,75 @@ export function specsStated(row) {
   return true;
 }
 
-/** Matched today. Falls back to the age when the server does not say. */
+/** Trovato oggi. Ripiega sull'età quando il server non lo dice. */
 export const isNew = (row) => (row.isNew != null ? !!row.isNew : row.ageDays === 0);
 
-export function ageLabel(days) {
-  if (days == null) return 'seen recently';
-  if (days <= 0) return 'first seen today';
-  if (days === 1) return 'first seen yesterday';
-  return `first seen ${days} days ago`;
-}
+/* ---- tempi ---------------------------------------------------------------
+ * Il backend salva UTC senza indicatore di fuso, quindi la Z va aggiunta a mano
+ * o il browser lo legge come ora locale e sbaglia di due ore d'estate.
+ * ------------------------------------------------------------------------ */
 
-/** The backend stores UTC without a zone marker. */
-export function timeAgo(sqlTimestamp) {
+export function parseSqlTime(sqlTimestamp) {
   if (!sqlTimestamp) return null;
-  const t = Date.parse(String(sqlTimestamp).replace(' ', 'T') + 'Z');
-  if (Number.isNaN(t)) return null;
-  const mins = Math.round((Date.now() - t) / 60000);
-  if (mins < 1) return 'just now';
-  if (mins < 60) return `${mins} min ago`;
-  const hours = Math.round(mins / 60);
-  if (hours < 24) return `${hours} h ago`;
-  const days = Math.round(hours / 24);
-  return days === 1 ? 'yesterday' : `${days} days ago`;
+  const t = Date.parse(`${String(sqlTimestamp).replace(' ', 'T')}Z`);
+  return Number.isNaN(t) ? null : new Date(t);
 }
 
-/** Red, amber or green for a seller, on the same rule the old UI used. */
+const DATE_TIME = new Intl.DateTimeFormat('it-IT', {
+  day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit',
+});
+const TIME_ONLY = new Intl.DateTimeFormat('it-IT', { hour: '2-digit', minute: '2-digit' });
+
+/** Data e ora in cui l'annuncio è entrato nell'archivio. */
+export function addedAt(row) {
+  const d = parseSqlTime(row?.firstSeen);
+  if (!d) return null;
+  const today = new Date().toDateString() === d.toDateString();
+  return today ? `oggi alle ${TIME_ONLY.format(d)}` : DATE_TIME.format(d);
+}
+
+/** Ore trascorse da quando è stato aggiunto, per il filtro per data. */
+export function hoursSinceAdded(row) {
+  const d = parseSqlTime(row?.firstSeen);
+  return d ? (Date.now() - d.getTime()) / 3_600_000 : null;
+}
+
+export function ageLabel(days) {
+  if (days == null) return 'visto di recente';
+  if (days <= 0) return 'visto oggi per la prima volta';
+  if (days === 1) return 'visto ieri per la prima volta';
+  return `visto ${days} giorni fa per la prima volta`;
+}
+
+export function timeAgo(sqlTimestamp) {
+  const d = parseSqlTime(sqlTimestamp);
+  if (!d) return null;
+  const mins = Math.round((Date.now() - d.getTime()) / 60000);
+  if (mins < 1) return 'adesso';
+  if (mins < 60) return `${mins} min fa`;
+  const hours = Math.round(mins / 60);
+  if (hours < 24) return hours === 1 ? "un'ora fa" : `${hours} ore fa`;
+  const days = Math.round(hours / 24);
+  return days === 1 ? 'ieri' : `${days} giorni fa`;
+}
+
+/** Data e ora complete, per lo storico delle scansioni. */
+export function dateTime(sqlTimestamp) {
+  const d = parseSqlTime(sqlTimestamp);
+  return d ? DATE_TIME.format(d) : null;
+}
+
+/** Quanto è durata una scansione. */
+export function duration(from, to) {
+  const a = parseSqlTime(from);
+  const b = parseSqlTime(to);
+  if (!a || !b) return null;
+  const secs = Math.max(0, Math.round((b.getTime() - a.getTime()) / 1000));
+  if (secs < 60) return `${secs} s`;
+  return `${Math.floor(secs / 60)} min ${String(secs % 60).padStart(2, '0')} s`;
+}
+
+/** Rosso, ambra o verde per un venditore, con la regola della vecchia interfaccia. */
 export function sellerTone(row) {
   const n = row.reviews ?? 0;
   if (n < 3) return 'bad';
