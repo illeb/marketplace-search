@@ -122,6 +122,7 @@ type Search {
   countries: [String!]!
   cpuTiers: [String!]!
   enabled: Boolean!
+  exclude: String!
   id: Int!
   includeUnlocated: Boolean!
   kind: SearchKind!
@@ -150,6 +151,7 @@ input SearchInput {
   countries: [String!]
   cpuTiers: [String!]
   enabled: Boolean
+  exclude: String
   includeUnlocated: Boolean
   kind: SearchKind
   lat: Float

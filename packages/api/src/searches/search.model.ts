@@ -11,6 +11,8 @@ export class Search {
   @Field(() => Int) id!: number;
   @Field() name!: string;
   @Field() query!: string;
+  /** Parole da non vedere, separate da virgole. Vuota vuol dire nessuna. */
+  @Field() exclude!: string;
   @Field(() => SearchKind) kind!: SearchKind;
   @Field(() => Float) minPrice!: number;
   @Field(() => Float) maxPrice!: number;
@@ -43,6 +45,7 @@ export class Search {
 export class SearchInput {
   @Field({ nullable: true }) name?: string;
   @Field({ nullable: true }) query?: string;
+  @Field({ nullable: true }) exclude?: string;
   @Field(() => SearchKind, { nullable: true }) kind?: SearchKind;
   @Field(() => Float, { nullable: true }) minPrice?: number;
   @Field(() => Float, { nullable: true }) maxPrice?: number;

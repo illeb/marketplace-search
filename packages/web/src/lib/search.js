@@ -5,7 +5,7 @@
 // real arrays now rather than comma-separated strings.
 
 export const SEARCH_FIELDS = [
-  'name', 'query', 'kind',
+  'name', 'query', 'exclude', 'kind',
   'minPrice', 'maxPrice',
   'sources', 'countries',
   'chassis', 'vendor', 'brands', 'cpuTiers',
@@ -25,6 +25,7 @@ export const LIST_FIELDS = new Set(['sources', 'countries', 'chassis', 'brands',
 export const DEFAULT_SEARCH = {
   name: 'Nuova ricerca',
   query: '',
+  exclude: '',
   kind: 'COMPUTER',
   minPrice: 0,
   maxPrice: 300,

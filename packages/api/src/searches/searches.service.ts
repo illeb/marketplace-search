@@ -28,6 +28,7 @@ export class SearchesService {
       id: r.id,
       name: r.name,
       query: r.query,
+      exclude: r.exclude ?? '',
       kind: String(r.kind || 'other').toUpperCase() as SearchKind,
       minPrice: r.min_price ?? 0,
       maxPrice: r.max_price ?? 0,
@@ -61,6 +62,7 @@ export class SearchesService {
     const put = (col: string, v: Col | undefined) => { if (v !== undefined) out[col] = v; };
     put('name', i.name);
     put('query', i.query);
+    put('exclude', i.exclude);
     if (i.kind !== undefined) out.kind = String(i.kind).toLowerCase();
     put('min_price', i.minPrice);
     put('max_price', i.maxPrice);
@@ -205,7 +207,7 @@ export class SearchesService {
 const capitalise = (s: string) => s.charAt(0).toUpperCase() + s.slice(1).toLowerCase();
 
 const DEFAULTS: Record<string, Col> = {
-  name: 'New search', query: '', kind: 'computer', min_price: 0, max_price: 300,
+  name: 'New search', query: '', exclude: '', kind: 'computer', min_price: 0, max_price: 300,
   place: '', lat: null, lon: null, radius_km: 0, include_unlocated: 1, countries: '',
   sources: 'subito,wallapop,vinted', vendor: '', brands: '', min_gen: 0, min_year: 0,
   min_ram: 0, min_storage: 0, chassis: '', cpu_tiers: '', min_reviews: 0, enabled: 1,

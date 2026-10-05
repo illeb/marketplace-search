@@ -151,6 +151,22 @@
       <span {...stylex.attrs(ui.hint)}>separati da virgola: ogni termine viene cercato a ogni scansione</span>
     </label>
 
+    <label {...stylex.attrs(ui.field, s.span2)}>
+      <span {...stylex.attrs(ui.label, changedLabel('exclude'))}>Parole da escludere</span>
+      <input
+        type="text"
+        bind:value={draft.exclude}
+        placeholder="per ricambi, rotto, non funzionante"
+        {...stylex.attrs(ui.input)}
+      />
+      <span {...stylex.attrs(ui.hint)}>
+        separate da virgola: l'annuncio che ne contiene una, nel titolo o nel testo, sparisce
+        dalla lista. Si confrontano parole intere e gli accenti non contano, quindi «ram» non
+        tocca una «rampa»; da cinque lettere in su prende anche le forme vicine, «ricambi»
+        trova «ricambio». Una voce con più parole è una frase da trovare di fila.
+      </span>
+    </label>
+
     <div {...stylex.attrs(ui.field)}>
       <span {...stylex.attrs(ui.label, changedLabel('kind'))}>Sto cercando</span>
       <Segmented options={KINDS} bind:value={draft.kind} label="Sto cercando" />

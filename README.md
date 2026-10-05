@@ -203,6 +203,21 @@ These all cost a wrong answer at least once before being fixed:
 
 Each field carries a confidence note: stated, labelled, inferred from the model, or unknown.
 
+## Excluding words
+
+A search can carry a blocklist: comma-separated words, matched against the
+title and the body. An advert containing any of them drops out.
+
+Whole words only, accents folded, so `ram` does not take out a *rampa* and
+`perché` and `perche` are the same word. From five letters up the last one is
+dropped and the rest left to run, so `ricambi` also catches *ricambio* and
+`rotto` catches *rotta* — the forms you meant when you typed one of them. An
+entry with several words is a phrase and has to be found in sequence:
+`per ricambi` does not fire on an advert that merely says *per*.
+
+It is a filter, not a gate: excluded adverts are still stored, so shortening the
+list recovers them immediately, with no sweep. Same rule as every other filter.
+
 ## Relevance
 
 Marketplaces answer a query with whatever they think is related. Asking Subito for a dough

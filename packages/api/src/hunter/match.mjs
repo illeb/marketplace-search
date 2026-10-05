@@ -1,13 +1,54 @@
 import { DDR3_MODELS, vendorOf } from './parse.mjs';
 import { countriesFor, distanceKm } from './geo.mjs';
+import { strip, stem } from './relevance.mjs';
 
 const countriesOk = search => countriesFor(search);
 
 const csv = s => String(s || '').split(',').map(x => x.trim()).filter(Boolean);
 
+/* ---- parole da non vedere ------------------------------------------------
+ * Una lista nera, separata da virgole, confrontata su titolo e testo. Usa la
+ * stessa normalizzazione del filtro di rilevanza, quindi gli accenti non
+ * contano e "perché" e "perche" sono la stessa parola.
+ *
+ * Si confrontano parole intere, mai pezzi di parola: escludere "ram" non deve
+ * togliere una "rampa". Da cinque lettere in su si tronca l'ultima e si lascia
+ * correre il resto, così "ricambi" prende anche "ricambio" e "rotto" anche
+ * "rotta" — le forme che uno si aspetta di aver escluso scrivendone una. Una
+ * voce con più parole è una frase e va trovata di fila.
+ * ------------------------------------------------------------------------ */
+
+// strip() lascia solo lettere, cifre e spazi, quindi nessun carattere speciale
+// può arrivare qui dentro e non c'è niente da proteggere.
+const wordPattern = w => (w.length >= 5 ? `${stem(w)}[a-z0-9]*` : w);
+
+const termPattern = term => new RegExp(
+  `(?:^| )${term.split(' ').filter(Boolean).map(wordPattern).join(' ')}(?: |$)`,
+);
+
+/**
+ * La prima parola esclusa che compare, o null. Torna la parola e non un
+ * booleano perché il motivo dello scarto va mostrato come tutti gli altri.
+ */
+export function excludedBy(exclude, title, description) {
+  const terms = csv(exclude);
+  if (!terms.length) return null;
+  const text = `${strip(title)} ${strip(description)}`;
+  for (const raw of terms) {
+    const term = strip(raw);
+    if (!term) continue;
+    if (termPattern(term).test(text)) return raw.trim();
+  }
+  return null;
+}
+
 /** Decide whether a parsed listing satisfies a saved search. Returns reasons when it does not. */
 export function evaluate(search, listing, spec, seller) {
   const why = [];
+  // Prima di tutto il resto: vale per ogni tipo di ricerca, anche per quelle
+  // che più sotto escono subito perché non hanno specifiche da guardare.
+  const banned = excludedBy(search.exclude, listing.title, listing.description);
+  if (banned) why.push(`contiene "${banned}"`);
   if (listing.price < (search.min_price ?? 0)) why.push('under min price');
   if (listing.price > (search.max_price ?? 1e9)) why.push('over max price');
   if (listing.country && !countriesOk(search).includes(listing.country)) why.push(`sells from ${listing.country}`);

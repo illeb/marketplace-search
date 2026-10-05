@@ -3,7 +3,7 @@
 // mixes promoted items into results. Nothing downstream can tell the difference,
 // so the listing has to earn its place by actually mentioning what was asked for.
 
-const strip = s => String(s || '').toLowerCase()
+export const strip = s => String(s || '').toLowerCase()
   .normalize('NFD').replace(/[̀-ͯ]/g, '')   // fold accents: perché -> perche
   .replace(/[^a-z0-9]+/g, ' ').trim();
 
@@ -18,7 +18,7 @@ export function termTokens(query) {
 
 /** Drop the final letter so Italian and Spanish inflections still match:
  *  impastatrice/impastatrici, pentola/pentole, ordenador/ordenadores. */
-const stem = w => (w.length >= 5 ? w.slice(0, -1) : w);
+export const stem = w => (w.length >= 5 ? w.slice(0, -1) : w);
 
 /**
  * A listing is relevant when any one significant word from any term appears in its

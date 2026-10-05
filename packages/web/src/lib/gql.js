@@ -15,7 +15,7 @@ export const client = new Client({
 
 export const SEARCH_FIELDS = gql`
   fragment SearchFields on Search {
-    id name query kind minPrice maxPrice sources countries
+    id name query exclude kind minPrice maxPrice sources countries
     place lat lon radiusKm includeUnlocated
     chassis vendor brands cpuTiers
     minGen minYear minRam minStorage minReviews

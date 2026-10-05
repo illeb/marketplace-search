@@ -123,6 +123,7 @@ addColumn('listings', 'image_url', 'TEXT');
 // quando l'annuncio è stato pubblicato sul marketplace, che non è quando lo
 // abbiamo visto noi. Subito e Wallapop la danno, Vinted no.
 addColumn('listings', 'posted_at', 'TEXT');
+addColumn('searches', 'exclude', "TEXT DEFAULT ''");
 
 // Every scan, so "did the hourly schedule actually fire" has an answer. Only
 // last_run_at existed before, which is a single timestamp and says nothing about
