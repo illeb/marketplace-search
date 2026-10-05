@@ -31,6 +31,10 @@ COPY --from=build /runtime/node_modules ./packages/api/node_modules
 COPY --from=build /runtime/package.json ./packages/api/
 COPY --from=build /build/packages/api/dist ./packages/api/dist
 COPY --from=build /build/packages/web/dist ./packages/web/dist
+# Manutenzione una tantum, da lanciare a mano dentro al contenitore. Non c'è
+# pnpm qui dentro — l'immagine ha solo node e le dipendenze di produzione —
+# quindi si chiamano col percorso:  node packages/api/scripts/<nome>.mjs
+COPY --from=build /build/packages/api/scripts ./packages/api/scripts
 
 # The layout matches the repository, so config.mjs resolves its database and
 # static root the same way in development and in the container.

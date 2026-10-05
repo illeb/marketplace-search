@@ -315,6 +315,18 @@ price**, so a naive price check reads it as live.
 `pnpm --filter api recheck-sold` re-opens everything already marked sold and puts back what
 is still there. It is a repair for what the old rule left behind, not a routine job.
 
+The runtime image has no pnpm — only node and the production dependencies — so inside the
+container it is called by path, from `/app`:
+
+```sh
+node packages/api/scripts/recheck-sold.mjs                 # listings a search still holds
+RECHECK_LIMIT=10 node packages/api/scripts/recheck-sold.mjs  # try it on ten first
+RECHECK_ALL=1 node packages/api/scripts/recheck-sold.mjs     # the whole archive
+```
+
+Run it **after** updating the image, never before: on an older build Vinted's soft 404 is
+not recognised, so most of its adverts come back as "cannot tell" and stay retired.
+
 ## Source quirks
 
 | | Auth | Descriptions | Pagination | Reputation |

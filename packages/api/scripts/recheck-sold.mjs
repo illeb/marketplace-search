@@ -6,8 +6,13 @@
 // poi la scansione chiede alla pagina prima di ritirare, quindi questo non si
 // riaccumula e lo script non va rimesso in un cron.
 //
-//   pnpm --filter api recheck-sold          solo quelli di una ricerca attiva
-//   RECHECK_ALL=1 pnpm --filter api recheck-sold   tutto l'archivio
+// Dentro al contenitore non c'è pnpm, quindi si chiama col percorso:
+//
+//   node packages/api/scripts/recheck-sold.mjs      quelli di una ricerca attiva
+//   RECHECK_ALL=1 node .../recheck-sold.mjs         tutto l'archivio
+//   RECHECK_LIMIT=10 node .../recheck-sold.mjs      solo i primi 10, per provare
+//
+// Fuori, dal repository, `pnpm --filter api recheck-sold` fa lo stesso.
 import { db } from '../dist/hunter/db.mjs';
 import * as subito from '../dist/hunter/sources/subito.mjs';
 import * as wallapop from '../dist/hunter/sources/wallapop.mjs';
@@ -20,8 +25,10 @@ const where = process.env.RECHECK_ALL
   ? 'l.sold_at IS NOT NULL'
   : 'l.sold_at IS NOT NULL AND EXISTS (SELECT 1 FROM matches m WHERE m.listing_id = l.id)';
 
+const limit = Number(process.env.RECHECK_LIMIT) || 0;
 const rows = db.prepare(
-  `SELECT l.id, l.source, l.url, l.title FROM listings l WHERE ${where} ORDER BY l.sold_at DESC`,
+  `SELECT l.id, l.source, l.url, l.title FROM listings l WHERE ${where}
+   ORDER BY l.sold_at DESC${limit > 0 ? ' LIMIT ' + limit : ''}`,
 ).all();
 
 console.log(`${rows.length} annunci dati per venduti da ricontrollare`);
