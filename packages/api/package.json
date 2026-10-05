@@ -13,7 +13,8 @@
     "start": "node --no-warnings dist/main.js",
     "worker": "node --no-warnings src/hunter/worker.mjs",
     "once": "node --no-warnings src/hunter/worker.mjs --once",
-    "schema": "node --no-warnings scripts/schema.mjs"
+    "schema": "node --no-warnings scripts/schema.mjs",
+    "recheck-sold": "node --no-warnings scripts/recheck-sold.mjs"
   },
   "dependencies": {
     "@apollo/server": "^5.5.1",

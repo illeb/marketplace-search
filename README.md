@@ -293,10 +293,27 @@ filters, even one first fetched for a different search.
 
 ## Sold detection
 
-A listing that disappears from a search for `MISSES_BEFORE_SOLD` consecutive sweeps is
-marked sold. This matters because **a sold Subito advert keeps serving its page at the old
-price** — a naive price check reads it as live. The adapters also expose `isSold()`, which
-reads Subito's `item-sold-badge`, Wallapop's `sold` flag, and Vinted's availability.
+When a listing stops coming back from a search, the sweep opens its page and asks. The
+adapters' `isSold()` reads Subito's `item-sold-badge`, Wallapop's `sold` flag and Vinted's
+availability, and answers yes, no, or "cannot tell"; only the last falls back to counting
+`MISSES_BEFORE_SOLD` consecutive absences.
+
+Counting alone was wrong in both directions. An advert can drop out of a search while being
+perfectly alive — past the third page of results, or the catalogue simply reordering — and
+two of those in a row retired it: on one real pass, **six of the seven listings that had
+vanished from the catalogue were still live**. In the other direction a withdrawn advert sat
+in the list until its second absence, with a link that opened nothing.
+
+Vinted makes that second case worse: **a removed item answers HTTP 200**, with a
+"not found" page, so a status check never fires. It is recognised by content instead —
+no `ld+json` Product and a bare `<title>Vinted</title>`, two signals together, because
+either one alone would mistake a block page for a deletion.
+
+Any of this matters because **a sold Subito advert keeps serving its page at the old
+price**, so a naive price check reads it as live.
+
+`pnpm --filter api recheck-sold` re-opens everything already marked sold and puts back what
+is still there. It is a repair for what the old rule left behind, not a routine job.
 
 ## Source quirks
 

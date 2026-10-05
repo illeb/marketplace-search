@@ -165,7 +165,8 @@ async function runSearchInner(search) {
       fetched++;
       await sleep(CONFIG.politeness.detailMs);
       if (!d) continue;
-      if (!d.inStock) { c.gone = true; continue; }
+      // d.gone: la pagina risponde 200 ma è quella del "non trovato"
+      if (d.gone || !d.inStock) { c.gone = true; continue; }
       if (d.postedAt) { c.r.postedAt = d.postedAt; dated++; }
       c.r.description = d.description;
       const better = parseListing(c.r.title, c.r.description, search.kind);
@@ -220,27 +221,63 @@ async function runSearchInner(search) {
       setProgress(Number(search.id), {
         phase: 'dates', step: steps, steps, label: 'date di pubblicazione', found: pool.size,
       });
-      let dated = 0;
+      let dated = 0, retired = 0;
       for (const row of missing) {
         const d = await vinted.detail(row.url);
         await sleep(CONFIG.politeness.detailMs);
-        if (!d?.postedAt) continue;
+        if (!d) continue;
+        // Questa fase apre proprio le righe che si vedono in tabella, quindi è
+        // il posto giusto per accorgersi che una non esiste più: senza, un
+        // annuncio sparito resta in lista finché non lo prende il contatore
+        // delle assenze, e intanto il link apre una pagina vuota.
+        if (d.gone || !d.inStock) {
+          db.prepare("UPDATE listings SET sold_at = datetime('now') WHERE id=?").run(row.id);
+          retired++;
+          continue;
+        }
+        if (!d.postedAt) continue;
         db.prepare('UPDATE listings SET posted_at=? WHERE id=?').run(d.postedAt, row.id);
         dated++;
       }
-      log(`  ${missing.length} date mancanti cercate, ${dated} trovate`);
+      log(`  ${missing.length} date mancanti cercate, ${dated} trovate, ${retired} sparite`);
     }
   }
 
   // ---- 5. staleness --------------------------------------------------------
-  const stale = db.prepare(`SELECT l.id FROM listings l
+  // Un annuncio che questa passata non ha più trovato nel catalogo. Contarlo e
+  // basta non funzionava in nessuna delle due direzioni: un annuncio vivo che
+  // per due giri non è uscito dalla ricerca — succede, oltre la terza pagina o
+  // se il catalogo riordina — veniva dato per venduto e spariva dalla lista
+  // senza che nessuno lo avesse tolto; e uno davvero sparito restava in lista
+  // fino alla seconda assenza, col link che apriva il vuoto.
+  //
+  // Quindi si chiede alla pagina, che è l'unica a saperlo davvero. Gli spariti
+  // per passata sono una manciata, quindi sono poche richieste, e il conteggio
+  // resta solo per quando la pagina non risponde in modo chiaro.
+  const stale = db.prepare(`SELECT l.id, l.source, l.url FROM listings l
     JOIN matches m ON m.listing_id = l.id
     WHERE m.search_id = ? AND l.sold_at IS NULL AND l.last_seen < ?`).all(search.id, sweepStart);
+
+  const sold = db.prepare("UPDATE listings SET sold_at = datetime('now') WHERE id=?");
+  const miss = db.prepare('UPDATE listings SET misses = misses + 1 WHERE id=? RETURNING misses');
+  const forgive = db.prepare('UPDATE listings SET misses = 0 WHERE id=?');
+  let asked = 0, confirmed = 0, alive = 0;
+
   for (const st of stale) {
-    const misses = db.prepare('UPDATE listings SET misses = misses + 1 WHERE id=? RETURNING misses').get(st.id).misses;
-    if (misses >= CONFIG.missesBeforeSold)
-      db.prepare("UPDATE listings SET sold_at = datetime('now') WHERE id=?").run(st.id);
+    const source = SOURCES[st.source];
+    let gone = null;
+    if (source?.isSold) {
+      try { gone = await source.isSold(st.url); } catch { gone = null; }
+      asked++;
+      await sleep(CONFIG.politeness.detailMs);
+    }
+    if (gone === true) { sold.run(st.id); confirmed++; continue; }
+    // Vivo: l'assenza era del catalogo, non dell'annuncio, e non deve pesare.
+    if (gone === false) { forgive.run(st.id); alive++; continue; }
+    // null: non si sa, e allora si torna a contare.
+    if (miss.get(st.id).misses >= CONFIG.missesBeforeSold) sold.run(st.id);
   }
+  if (asked) log(`  ${asked} spariti verificati: ${confirmed} ritirati, ${alive} ancora vivi`);
 
   db.prepare("UPDATE searches SET last_run_at = datetime('now') WHERE id=?").run(search.id);
   log(`"${search.name}": ${pool.size} seen, ${offTopic} off-topic, ${matched} match, ${stale.length} stale, ${((Date.now() - started) / 1000).toFixed(0)}s`);

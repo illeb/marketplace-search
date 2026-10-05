@@ -111,10 +111,30 @@ export function uploadedAgoToIso(text, now = Date.now()) {
   return new Date(now - n * unit[1] * 60_000).toISOString();
 }
 
-/** Search gives titles only, so promising candidates need their page fetched. */
-export async function detail(url) {
+/**
+ * Un annuncio sparito non risponde 404: Vinted serve 200 con una pagina
+ * "non trovato". Un 404 morbido, che va riconosciuto dal contenuto, o un
+ * annuncio ritirato resta in lista finché il contatore delle assenze non lo
+ * prende — ed è il motivo per cui qualche risultato apriva una pagina vuota.
+ *
+ * Due segnali insieme, perché uno solo sarebbe fragile: la pagina di un
+ * annuncio vivo porta sempre un JSON-LD di tipo Product, e il suo <title> è
+ * "nome dell'annuncio | Vinted". Quella del non trovato non ha JSON-LD e ha per
+ * titolo il solo "Vinted". Se cadesse solo il primo — una pagina di blocco, una
+ * risposta a metà — si torna a "non so", che è il comportamento di prima.
+ */
+const NOT_FOUND_TITLE = /<title>\s*Vinted\s*<\/title>/i;
+
+/**
+ * La pagina letta una volta sola, perché tutto quel che serve sta lì: se
+ * l'annuncio esiste ancora, la descrizione, il prezzo e la data. Null vuol dire
+ * "non si sa" — rete caduta, risposta a metà, pagina illeggibile — ed è diverso
+ * da `{ gone: true }`, che vuol dire "non c'è più".
+ */
+async function readItemPage(url) {
   try {
     const r = await authed(url, 'text/html');
+    if (r.status === 404 || r.status === 410) return { gone: true };
     if (!r.ok) return null;
     const html = await r.text();
     // la data sta fuori dal JSON-LD, quindi si legge prima e a parte
@@ -122,7 +142,7 @@ export async function detail(url) {
     const postedAt = up ? uploadedAgoToIso(up[1]) : null;
 
     const m = html.match(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/);
-    if (!m) return null;
+    if (!m) return NOT_FOUND_TITLE.test(html) ? { gone: true } : null;
     const j = JSON.parse(m[1]);
     return { description: j.description || '',
              inStock: /InStock/i.test(j.offers?.availability || ''),
@@ -130,6 +150,9 @@ export async function detail(url) {
              postedAt };
   } catch { return null; }
 }
+
+/** Search gives titles only, so promising candidates need their page fetched. */
+export const detail = readItemPage;
 
 export async function seller(sellerId) {
   try {
@@ -147,13 +170,7 @@ export async function seller(sellerId) {
 }
 
 export async function isSold(url) {
-  // A removed item answers 404 or 410, which detail() flattens into null along
-  // with every transient failure. Ask separately so a withdrawn advert is not
-  // reported as "cannot tell" forever.
-  try {
-    const r = await authed(url, 'text/html');
-    if (r.status === 404 || r.status === 410) return true;
-  } catch { /* fall through to the detail read */ }
-  const d = await detail(url);
-  return d == null ? null : !d.inStock;
+  const d = await readItemPage(url);
+  if (d == null) return null;
+  return d.gone === true || !d.inStock;
 }
