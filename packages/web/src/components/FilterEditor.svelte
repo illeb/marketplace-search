@@ -159,7 +159,7 @@
     <div {...stylex.attrs(ui.field)}>
       <span {...stylex.attrs(ui.label, changedLabel('enabled'))}>Sweeps</span>
       <Segmented options={ENABLED} bind:value={draft.enabled} label="Enabled" />
-      <span {...stylex.attrs(ui.hint)}>paused searches are skipped by “Sweep all”</span>
+      <span {...stylex.attrs(ui.hint)}>paused searches are skipped by "Scansiona tutti" and by the hourly schedule</span>
     </div>
 
     <label {...stylex.attrs(ui.field)}>

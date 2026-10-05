@@ -61,6 +61,18 @@
       minWidth: 0,
     },
     main: { display: 'flex', flexDirection: 'column', gap: 12, minWidth: 0 },
+    favBar: { paddingBlock: 13, paddingInline: 15 },
+    favTitle: { margin: 0, fontSize: 16, letterSpacing: '-0.01em' },
+    favHint: { marginBlockStart: 3, marginBlockEnd: 0, maxWidth: '70ch' },
+    previewNote: {
+      margin: 0,
+      paddingBlock: 8,
+      paddingInline: 12,
+      borderRadius: t.radiusSm,
+      backgroundColor: t.accentWash,
+      color: t.accentInk,
+      fontSize: 13,
+    },
     placeholder: {
       margin: 0,
       paddingBlock: 36,
@@ -78,7 +90,7 @@
 
 <script>
   import { api } from './lib/gql.js';
-  import { toDraft, newDraft, changedFields, SEARCH_FIELDS } from './lib/search.js';
+  import { toDraft, newDraft, changedFields, SEARCH_FIELDS, toInput } from './lib/search.js';
   import { isNew, specsStated } from './lib/format.js';
   import { registerTools } from './lib/webmcp.js';
 
@@ -93,6 +105,10 @@
   let countries = $state([]);
   let stats = $state(null);
   let rowsBySearch = $state({});        // search id -> listing rows, as fetched
+  let mode = $state('search');          // 'search' | 'favourites'
+  let favRows = $state(null);
+  let previewRows = $state(null);       // what the unsaved filters would match
+  let previewing = $state(false);
   let booted = $state(false);
   let error = $state(null);
 
@@ -131,7 +147,11 @@
     ),
   );
 
-  const rows = $derived(rowsBySearch[selectedId] ?? null);
+  // An edited filter shows its effect straight away; Save only decides what the
+  // scheduled sweeps will use from then on.
+  const rows = $derived(
+    mode === 'favourites' ? favRows : (previewRows ?? rowsBySearch[selectedId] ?? null),
+  );
   // The searches endpoint carries the live match count, so the sidebar needs no
   // listings at all. A search whose rows are already loaded uses those instead,
   // so the number reacts immediately after a run.
@@ -177,6 +197,7 @@
 
 
   function select(id) {
+    mode = 'search';
     selectedId = id;
     pendingNew = null;
     deletingId = null;
@@ -220,6 +241,61 @@
       return r;
     },
   }));
+
+  let previewTimer = null;
+  let previewSeq = 0;
+  $effect(() => {
+    const d = draft;
+    const id = selectedId;
+    const isDirty = changed.length > 0;
+    // reading every field here is what makes the effect track them
+    const input = d && !pendingNew ? toInput(d, SEARCH_FIELDS) : null;
+
+    clearTimeout(previewTimer);
+    if (!input || !id || !isDirty || mode === 'favourites') {
+      previewRows = null;
+      previewing = false;
+      return;
+    }
+    const mine = ++previewSeq;
+    previewing = true;
+    previewTimer = setTimeout(async () => {
+      try {
+        const r = await api.preview(id, input);
+        if (mine === previewSeq) previewRows = r;
+      } catch {
+        if (mine === previewSeq) previewRows = null;   // fall back to the saved list
+      } finally {
+        if (mine === previewSeq) previewing = false;
+      }
+    }, 320);
+  });
+
+  async function loadFavourites() {
+    try { favRows = await api.favourites(); }
+    catch (e) { error = `Could not load saved adverts: ${e.message}`; }
+  }
+
+  function showFavourites() {
+    mode = 'favourites';
+    deletingId = null;
+    favRows = null;
+    loadFavourites();
+  }
+
+  async function toggleFavourite(row) {
+    const next = !row.isFavourite;
+    try {
+      await api.setFavourite(row.id, next);
+      const flip = (list) => list?.map((r) => (r.id === row.id ? { ...r, isFavourite: next } : r));
+      for (const k of Object.keys(rowsBySearch)) rowsBySearch[k] = flip(rowsBySearch[k]);
+      if (previewRows) previewRows = flip(previewRows);
+      if (mode === 'favourites') favRows = next ? flip(favRows) : favRows.filter((r) => r.id !== row.id);
+      else if (favRows) favRows = null;   // stale, reload on next visit
+    } catch (e) {
+      error = `Could not save that advert: ${e.message}`;
+    }
+  }
 
   async function boot() {
     try {
@@ -385,17 +461,39 @@
       {searches}
       {counts}
       {selectedId}
+      {sweeping}
+      favouritesActive={mode === 'favourites'}
       draftingNew={!!pendingNew}
       dirty={selectedId != null && dirtyIds.has(selectedId)}
       bind:deletingId
       onselect={select}
       onnew={startNew}
       ondelete={remove}
+      onsweep={sweep}
+      onfavourites={showFavourites}
     />
   </aside>
 
   <main {...stylex.attrs(s.main)}>
-    {#if !booted}
+    {#if mode === 'favourites'}
+      <div {...stylex.attrs(ui.panel, s.favBar)}>
+        <h2 {...stylex.attrs(s.favTitle)}>Saved adverts</h2>
+        <p {...stylex.attrs(ui.hint, s.favHint)}>
+          Kept by hand, independent of any search. They stay here when a search is
+          deleted or an advert goes stale. Press the star on a row to remove one.
+        </p>
+      </div>
+      {#if !favRows}
+        <p {...stylex.attrs(s.placeholder)}>Loading…</p>
+      {:else if !favRows.length}
+        <p {...stylex.attrs(s.placeholder)}>
+          Nothing saved yet. Press the star on any advert to keep it here.
+        </p>
+      {:else}
+        <ViewFilters bind:view shown={visible.length} total={favRows.length} kind={null} />
+        <ResultsTable rows={visible} search={null} onfavourite={toggleFavourite} />
+      {/if}
+    {:else if !booted}
       <p {...stylex.attrs(s.placeholder)}>Loading…</p>
     {:else if !draft}
       <p {...stylex.attrs(s.placeholder)}>
@@ -403,15 +501,7 @@
       </p>
     {:else}
       {#if !pendingNew}
-        <RunControls
-          search={selected}
-          {running}
-          {runResult}
-          {runError}
-          {sweeping}
-          onrun={run}
-          onsweep={sweep}
-        />
+        <RunControls search={selected} {running} {runResult} {runError} onrun={run} />
       {/if}
 
       <FilterEditor
@@ -440,7 +530,13 @@
         {:else if !visible.length}
           <p {...stylex.attrs(s.placeholder)}>Every one of the {rows.length} matches is hidden by the view filters.</p>
         {:else}
-          <ResultsTable rows={visible} search={selected} />
+          {#if previewRows}
+            <p {...stylex.attrs(s.previewNote)}>
+              Showing what the open filters would match. <b>Save</b> to keep them for the
+              hourly sweeps.
+            </p>
+          {/if}
+          <ResultsTable rows={visible} search={selected} onfavourite={toggleFavourite} />
         {/if}
       {/if}
     {/if}

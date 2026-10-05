@@ -120,6 +120,20 @@
     // the thumbnail sits beside the title rather than above it, so a row grows
     // sideways instead of taller — which is the whole point on a phone
     machineRow: { display: 'flex', gap: 10, alignItems: 'flex-start' },
+    star: {
+      flexGrow: 0, flexShrink: 0,
+      font: 'inherit',
+      fontSize: 17,
+      lineHeight: 1,
+      paddingBlock: 2,
+      paddingInline: 4,
+      cursor: 'pointer',
+      backgroundColor: 'transparent',
+      borderWidth: 0,
+      borderRadius: 4,
+      color: { default: t.faint, ':hover': t.warn },
+    },
+    starOn: { color: { default: t.warn, ':hover': t.warn } },
     thumb: {
       flexGrow: 0, flexShrink: 0,
       width: { default: 56, '@media (max-width: 460px)': 46 },
@@ -215,7 +229,7 @@
     isMemory, isMachine, isNew, ageLabel, sellerTone, stated, threads, modelLabel,
   } from '../lib/format.js';
 
-  let { rows, search } = $props();
+  let { rows, search, onfavourite } = $props();
 
   // Default direction per column: cheapest first, newest first, best-reviewed first.
   const DEFAULT_DIR = { price: 'asc', year: 'desc', reviews: 'desc' };
@@ -292,6 +306,13 @@
                   {...stylex.attrs(s.thumb)}
                 />
               {/if}
+              <button
+                type="button"
+                onclick={() => onfavourite?.(r)}
+                aria-pressed={!!r.isFavourite}
+                title={r.isFavourite ? 'Remove from saved adverts' : 'Save this advert'}
+                {...stylex.attrs(s.star, r.isFavourite && s.starOn)}
+              >{r.isFavourite ? '★' : '☆'}</button>
               <div {...stylex.attrs(s.machineText)}>
               <a href={r.url} target="_blank" rel="noopener noreferrer" {...stylex.attrs(s.title)}>
               {r.title || '(untitled advert)'}

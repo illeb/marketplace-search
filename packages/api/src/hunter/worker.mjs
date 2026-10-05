@@ -172,7 +172,7 @@ if (import.meta.url === `file://${process.argv[1]}`) {
  * from the specs table because the parse depends on the search's kind, and the
  * kind is one of the things being changed.
  */
-export function refilter(search) {
+export function matchingIds(search) {
   const terms = termTokens(search.query);
   const rows = db.prepare(`
     SELECT l.*, s.reviews, s.positive_pct AS positivePct, s.reports
@@ -180,6 +180,20 @@ export function refilter(search) {
     LEFT JOIN sellers s ON s.source = l.source AND s.seller_id = l.seller_id
     WHERE l.sold_at IS NULL`).all();
 
+  const out = [];
+  for (const r of rows) {
+    if (!isRelevant(terms, r.title, r.description)) continue;
+    const spec = parseListing(r.title, r.description, search.kind);
+    const seller = r.reviews == null ? null
+      : { reviews: r.reviews, positivePct: r.positivePct, reports: r.reports };
+    if (evaluate(search, r, spec, seller).ok) out.push(r.id);
+  }
+  return { ids: out, considered: rows.length };
+}
+
+export function refilter(search) {
+  const { ids, considered } = matchingIds(search);
+  const want = new Set(ids);
   const add = db.prepare('INSERT OR IGNORE INTO matches (search_id, listing_id) VALUES (?,?)');
   const drop = db.prepare('DELETE FROM matches WHERE search_id=? AND listing_id=?');
   const had = new Set(
@@ -187,17 +201,7 @@ export function refilter(search) {
       .map((r) => r.listing_id),
   );
 
-  let matched = 0;
-  for (const r of rows) {
-    let ok = isRelevant(terms, r.title, r.description);
-    if (ok) {
-      const spec = parseListing(r.title, r.description, search.kind);
-      const seller = r.reviews == null ? null
-        : { reviews: r.reviews, positivePct: r.positivePct, reports: r.reports };
-      ok = evaluate(search, r, spec, seller).ok;
-    }
-    if (ok) { matched++; if (!had.has(r.id)) add.run(search.id, r.id); }
-    else if (had.has(r.id)) drop.run(search.id, r.id);
-  }
-  return { considered: rows.length, matched };
+  for (const id of want) if (!had.has(id)) add.run(search.id, id);
+  for (const id of had) if (!want.has(id)) drop.run(search.id, id);
+  return { considered, matched: want.size };
 }

@@ -39,7 +39,7 @@
 <script>
   import { timeAgo } from '../lib/format.js';
 
-  let { search, running, runResult, runError, sweeping, onrun, onsweep } = $props();
+  let { search, running, runResult, runError, onrun } = $props();
 
   const lastRun = $derived(timeAgo(search?.lastRunAt));
   const sources = $derived((search?.sources ?? []).join(', '));
@@ -56,9 +56,9 @@
       {:else if runResult}
         Found {runResult.found} · {runResult.offTopic} off topic · <b>{runResult.matched} matched</b>
       {:else if lastRun}
-        Last run {lastRun}
+        Last scanned {lastRun} &middot; reads {sources || 'the marketplaces'} for this search only
       {:else}
-        Never run
+        Never scanned &middot; reads {sources || 'the marketplaces'} for this search only
       {/if}
     </p>
   </div>
@@ -69,16 +69,11 @@
     onclick={onrun}
     {...stylex.attrs(ui.button, ui.primary, s.btn)}
   >
-    {#if running}<span aria-hidden="true" {...stylex.attrs(s.spinner)}></span>Running…{:else}Run now{/if}
+    {#if running}
+      <span aria-hidden="true" {...stylex.attrs(s.spinner)}></span>Scanning…
+    {:else}
+      Scan this search
+    {/if}
   </button>
 
-  <button
-    type="button"
-    disabled={sweeping}
-    onclick={onsweep}
-    title="Run every enabled search in the background"
-    {...stylex.attrs(ui.button, ui.buttonHover, s.btn)}
-  >
-    {#if sweeping}<span aria-hidden="true" {...stylex.attrs(s.spinner)}></span>Sweeping…{:else}Sweep all{/if}
-  </button>
 </div>

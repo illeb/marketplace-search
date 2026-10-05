@@ -22,6 +22,8 @@ export class Listing {
   @Field() firstSeen!: string;
   @Field({ nullable: true }) soldAt?: string;
   @Field() isNew!: boolean;
+  /** Saved by hand; survives sweeps and the advert going stale. */
+  @Field() isFavourite!: boolean;
 
   /** Null when the advert states no location, never because it is far away. */
   @Field(() => Int, { nullable: true }) distanceKm?: number;

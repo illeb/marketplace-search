@@ -1,6 +1,6 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { db } from '../hunter/db.mjs';
-import { runSearch, sweep, refilter } from '../hunter/worker.mjs';
+import { runSearch, sweep, refilter, matchingIds } from '../hunter/worker.mjs';
 import { Search, SearchInput, SearchKind, Vendor, RunResult } from './search.model.js';
 
 /** The database keeps csv strings and snake_case; the schema wants arrays and
@@ -127,6 +127,21 @@ export class SearchesService {
 
   remove(id: number): boolean {
     return db.prepare('DELETE FROM searches WHERE id=?').run(id).changes > 0;
+  }
+
+  /**
+   * Which stored listings a search would match if `input` were saved. Nothing
+   * is written; this is what the editor previews against while you are still
+   * deciding.
+   */
+  wouldMatch(id: number, input: SearchInput): { ids: number[]; centre: { lat?: number; lon?: number } | null } {
+    const row = db.prepare('SELECT * FROM searches WHERE id=?').get(id) as any;
+    if (!row) throw new NotFoundException(`no search ${id}`);
+    const candidate = { ...row, ...this.toColumns(input) };
+    return {
+      ids: matchingIds(candidate).ids as number[],
+      centre: { lat: candidate.lat, lon: candidate.lon },
+    };
   }
 
   /** Runs one search now. Hits three marketplaces, so it takes minutes. */

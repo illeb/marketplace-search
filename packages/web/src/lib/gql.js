@@ -28,15 +28,37 @@ export const SEARCHES = gql`
   ${SEARCH_FIELDS}
 `;
 
+const LISTING_FIELDS = `
+      id source url title price city country shippable imageUrl
+      firstSeen soldAt isNew isFavourite distanceKm
+      vendor family model chassis cpu cpuNum generation year
+      ramGb ssdGb hddGb storageGb memTotal memSticks memPer memSpeed tiered
+      reviews positivePct cautions ageDays priceMin priceMax`;
+
 export const LISTINGS = gql`
   query Listings($searchId: Int!) {
     listings(searchId: $searchId) {
-      id source url title price city country shippable imageUrl
-      firstSeen soldAt isNew distanceKm
-      vendor family model chassis cpu cpuNum generation year
-      ramGb ssdGb hddGb storageGb memTotal memSticks memPer memSpeed tiered
-      reviews positivePct cautions ageDays priceMin priceMax
+      ${LISTING_FIELDS}
     }
+  }
+`;
+
+/** What the search would match if the open filters were saved. Writes nothing. */
+export const PREVIEW = gql`
+  query Preview($searchId: Int!, $input: SearchInput!) {
+    preview(searchId: $searchId, input: $input) {
+      ${LISTING_FIELDS}
+    }
+  }
+`;
+
+export const FAVOURITES = gql`
+  query Favourites { favourites { ${LISTING_FIELDS} } }
+`;
+
+export const SET_FAVOURITE = gql`
+  mutation SetFavourite($listingId: Int!, $value: Boolean!) {
+    setFavourite(listingId: $listingId, value: $value)
   }
 `;
 
@@ -77,6 +99,9 @@ const m = (doc, vars) => client.mutation(doc, vars).toPromise().then(unwrap);
 export const api = {
   searches:  () => q(SEARCHES).then((d) => d.searches),
   listings:  (searchId) => q(LISTINGS, { searchId }).then((d) => d.listings),
+  preview:   (searchId, input) => q(PREVIEW, { searchId, input }).then((d) => d.preview),
+  favourites: () => q(FAVOURITES).then((d) => d.favourites),
+  setFavourite: (listingId, value) => m(SET_FAVOURITE, { listingId, value }).then((d) => d.setFavourite),
   places:    (s) => q(PLACES, { q: s }).then((d) => d.places),
   countries: () => q(COUNTRIES).then((d) => d.countries),
   stats:     () => q(STATS).then((d) => d.stats),

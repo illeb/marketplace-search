@@ -121,6 +121,16 @@ addColumn('specs', 'year', 'INTEGER');
 // thumbnail from the source listing; all three adapters supply one
 addColumn('listings', 'image_url', 'TEXT');
 
+// Saved adverts. Independent of any search: deleting a search, or the advert
+// going stale, must not lose them.
+db.exec(`
+CREATE TABLE IF NOT EXISTS favourites (
+  listing_id INTEGER PRIMARY KEY REFERENCES listings(id) ON DELETE CASCADE,
+  added_at TEXT DEFAULT (datetime('now')),
+  note TEXT
+);
+`);
+
 // Town name -> coordinates. Only Wallapop returns a position, so a radius
 // depends on geocoding the town once and keeping it.
 db.exec(`

@@ -6,6 +6,8 @@
   // StyleX has no descendant selectors, so what used to be `.item.on .count`
   // becomes a flag handed to the child. Every parent state that used to reach
   // into a child is passed explicitly below.
+  const spin = stylex.keyframes({ to: { transform: 'rotate(360deg)' } });
+
   const s = stylex.create({
     nav: { display: 'flex', flexDirection: 'column', gap: 10 },
     head: { display: 'flex', alignItems: 'center', gap: 8 },
@@ -112,6 +114,53 @@
     confirmText: { flexGrow: 1, flexShrink: 1, flexBasis: 140 },
     confirmBtn: { fontSize: 12, paddingBlock: 4, paddingInline: 9 },
 
+    scanAll: {
+      width: '100%',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 7,
+      marginBlockStart: 2,
+    },
+    scanNote: { marginBlockStart: 5, marginBlockEnd: 0 },
+    favRow: {
+      width: '100%',
+      display: 'flex',
+      alignItems: 'center',
+      gap: 8,
+      marginBlockStart: 10,
+      paddingBlock: 9,
+      paddingInline: 11,
+      textAlign: 'left',
+      font: 'inherit',
+      fontSize: 14,
+      fontWeight: 600,
+      cursor: 'pointer',
+      backgroundColor: { default: t.surface, ':hover': t.surface2 },
+      borderWidth: 1,
+      borderStyle: 'solid',
+      borderColor: t.line,
+      borderRadius: t.radius,
+      color: t.ink,
+    },
+    favRowOn: {
+      borderColor: t.accent,
+      backgroundColor: { default: t.accentWash, ':hover': t.accentWash },
+      color: t.accentInk,
+    },
+    star: { fontSize: 15, lineHeight: 1 },
+    spinner: {
+      width: 11, height: 11,
+      flexGrow: 0, flexShrink: 0,
+      borderWidth: 2, borderStyle: 'solid',
+      borderColor: 'currentColor',
+      borderRightColor: 'transparent',
+      borderRadius: '50%',
+      animationName: spin,
+      animationDuration: { default: '0.7s', '@media (prefers-reduced-motion: reduce)': '2.4s' },
+      animationTimingFunction: 'linear',
+      animationIterationCount: 'infinite',
+    },
     empty: {
       paddingBlock: 16,
       paddingInline: 12,
@@ -130,13 +179,19 @@
     searches,
     counts,
     selectedId,
+    sweeping = false,
+    favouritesActive = false,
     draftingNew = false,
     dirty = false,
     deletingId = $bindable(null),
     onselect,
     onnew,
     ondelete,
+    onsweep,
+    onfavourites,
   } = $props();
+
+  const enabledCount = $derived(searches.filter((x) => x.enabled).length);
 
   function confirmFor(id, event) {
     event.stopPropagation();
@@ -212,4 +267,27 @@
       <li {...stylex.attrs(s.empty)}>No searches yet. Create one to begin.</li>
     {/each}
   </ul>
+
+  <button
+    type="button"
+    disabled={sweeping || !enabledCount}
+    onclick={onsweep}
+    {...stylex.attrs(ui.button, ui.buttonHover, s.scanAll)}
+  >
+    {#if sweeping}<span aria-hidden="true" {...stylex.attrs(s.spinner)}></span>Scanning…{:else}Scansiona tutti{/if}
+  </button>
+  <p {...stylex.attrs(ui.hint, s.scanNote)}>
+    Runs all {enabledCount} enabled {enabledCount === 1 ? 'search' : 'searches'} against the three
+    marketplaces, in the background, a few minutes each. The same pass the hourly schedule makes.
+  </p>
+
+  <button
+    type="button"
+    onclick={onfavourites}
+    aria-current={favouritesActive ? 'true' : undefined}
+    {...stylex.attrs(s.favRow, favouritesActive && s.favRowOn)}
+  >
+    <span aria-hidden="true" {...stylex.attrs(s.star)}>★</span>
+    Saved adverts
+  </button>
 </nav>
