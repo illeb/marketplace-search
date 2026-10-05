@@ -30,7 +30,7 @@ export const SEARCHES = gql`
 
 const LISTING_FIELDS = `
       id source url title price city country shippable imageUrl
-      postedAt firstSeen soldAt isNew isFavourite distanceKm
+      postedAt postedApprox firstSeen soldAt isNew isFavourite distanceKm
       vendor family model chassis cpu cpuNum generation year
       ramGb ssdGb hddGb storageGb memTotal memSticks memPer memSpeed tiered
       reviews positivePct cautions ageDays priceMin priceMax`;
@@ -92,6 +92,13 @@ export const DELETE_SEARCH = gql`mutation DeleteSearch($id: Int!) { deleteSearch
 export const RUN_SEARCH    = gql`mutation RunSearch($id: Int!) { runSearch(id: $id) { found offTopic matched } }`;
 export const SWEEP         = gql`mutation Sweep { sweep }`;
 
+export const SETTINGS = gql`query Settings { settings { sweepMinutes defaultSweepMinutes } }`;
+export const UPDATE_SETTINGS = gql`
+  mutation UpdateSettings($sweepMinutes: Int!) {
+    updateSettings(sweepMinutes: $sweepMinutes) { sweepMinutes defaultSweepMinutes }
+  }
+`;
+
 /* ---- thin imperative wrappers ------------------------------------------- */
 // The app drives its own state rather than subscribing per component, so these
 // read as plain async calls and raise the server's own message on failure.
@@ -125,4 +132,8 @@ export const api = {
   deleteSearch: (id) => m(DELETE_SEARCH, { id }).then((d) => d.deleteSearch),
   runSearch:    (id) => m(RUN_SEARCH, { id }).then((d) => d.runSearch),
   sweep:        () => m(SWEEP).then((d) => d.sweep),
+
+  settings:       () => q(SETTINGS).then((d) => d.settings),
+  updateSettings: (sweepMinutes) =>
+    m(UPDATE_SETTINGS, { sweepMinutes }).then((d) => d.updateSettings),
 };

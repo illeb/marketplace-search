@@ -4,6 +4,7 @@ import { Logger } from '@nestjs/common';
 import type { NestExpressApplication } from '@nestjs/platform-express';
 import { AppModule } from './app.module.js';
 import { CONFIG } from './hunter/config.mjs';
+import { pruneOrphanListings, compact } from './hunter/db.mjs';
 
 async function bootstrap(): Promise<void> {
   const app = await NestFactory.create<NestExpressApplication>(AppModule, {
@@ -34,9 +35,18 @@ async function bootstrap(): Promise<void> {
   });
 
   await app.listen(CONFIG.port, '0.0.0.0');
-  new Logger('Bootstrap').log(
-    `http://localhost:${CONFIG.port}  graphql /graphql  db ${CONFIG.dbPath}`,
-  );
+  const log = new Logger('Bootstrap');
+  log.log(`http://localhost:${CONFIG.port}  graphql /graphql  db ${CONFIG.dbPath}`);
+
+  // Una passata di pulizia all'avvio. Serve per gli annunci lasciati indietro
+  // dalle ricerche cancellate prima che la cancellazione li portasse via, e per
+  // quelli che una passata ha letto ma nessun filtro ha trattenuto: non si
+  // vedono da nessuna parte e la prossima scansione li rileggerebbe comunque.
+  const pruned = pruneOrphanListings();
+  if (pruned > 0) {
+    compact();
+    log.log(`${pruned} annunci senza ricerca rimossi`);
+  }
 }
 
 void bootstrap();

@@ -191,6 +191,9 @@
     onfavourites,
     onhistory,
     showHistory = false,
+    onsettings,
+    showSettings = false,
+    sweepLabel = null,
   } = $props();
 
   const enabledCount = $derived(searches.filter((x) => x.enabled).length);
@@ -281,7 +284,8 @@
   <p {...stylex.attrs(ui.hint, s.scanNote)}>
     Lancia {enabledCount} {enabledCount === 1 ? 'ricerca attiva' : 'ricerche attive'} su Subito,
     Wallapop e Vinted, una dopo l'altra, in background, qualche minuto ciascuna. Le ricerche in
-    pausa sono saltate. È lo stesso passaggio che fa la schedulazione oraria.
+    pausa sono saltate. È lo stesso passaggio che fa la schedulazione automatica{sweepLabel
+      ? `, ${sweepLabel}` : ''}.
   </p>
 
   <button
@@ -302,5 +306,15 @@
   >
     <span aria-hidden="true" {...stylex.attrs(s.star)}>★</span>
     Annunci preferiti
+  </button>
+
+  <button
+    type="button"
+    onclick={onsettings}
+    aria-expanded={showSettings}
+    {...stylex.attrs(s.favRow, showSettings && s.favRowOn)}
+  >
+    <span aria-hidden="true" {...stylex.attrs(s.star)}>⚙</span>
+    Impostazioni
   </button>
 </nav>

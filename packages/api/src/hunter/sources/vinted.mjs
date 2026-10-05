@@ -43,12 +43,17 @@ async function authed(url, accept = 'application/json, text/plain, */*') {
     origin: WEB(), referer: `${WEB()}/catalog`, cookie: jar, ...(anon ? { 'x-anon-id': anon } : {}) } });
 }
 
-export async function search({ query, maxPrice = 1000, maxPages = 3 }) {
+export async function search({ query, minPrice = 0, maxPrice = 1000, maxPages = 3 }) {
   const out = []; const time = Math.floor(Date.now() / 1000); const sid = crypto.randomUUID();
   for (let page = 1; page <= maxPages; page++) {
     const p = new URLSearchParams({ page: String(page), per_page: '96', time: String(time),
       search_text: query, currency: 'EUR', order: 'price_low_to_high',
       price_to: String(Math.ceil(maxPrice)), global_search_session_id: sid });
+    // Senza il limite inferiore il catalogo manda anche tutto ciò che costa meno
+    // del minimo, e ordinando dal più economico quella roba arrivava prima di
+    // ogni altra cosa: non poteva corrispondere a niente e si mangiava il budget
+    // di letture di pagina, che è l'unica via alla data di pubblicazione.
+    if (minPrice > 0) p.set('price_from', String(Math.floor(minPrice)));
     let r;
     try { r = await authed(`${API()}?${p}`); } catch { break; }
     if (r.status === 401 || r.status === 403) { jar = ''; try { r = await authed(`${API()}?${p}`); } catch { break; } }
@@ -60,9 +65,9 @@ export async function search({ query, maxPrice = 1000, maxPages = 3 }) {
       title: x.title || '', description: '', price: +x.price.amount,
       sellerId: x.user?.id ? String(x.user.id) : null, city: null, country: null,
       shippable: true, condition: x.item_box?.second_line || null, needsDetail: true,
-      // Vinted non pubblica una data: non è nel catalogo e non è nemmeno nel
-      // JSON-LD della pagina del singolo annuncio. Resta null, e l'interfaccia
-      // ripiega su quando l'abbiamo visto noi.
+      // Il catalogo non porta date; la pagina del singolo annuncio sì, e la
+      // legge detail(). Qui resta null e viene riempita se l'annuncio merita
+      // una lettura di dettaglio.
       postedAt: null,
       imageUrl: x.photo?.url || x.photo?.thumbnails?.at(-1)?.url || null,
     });
@@ -72,18 +77,57 @@ export async function search({ query, maxPrice = 1000, maxPages = 3 }) {
   return out;
 }
 
+/* ---- data di pubblicazione ------------------------------------------------
+ * Vinted non la mette in nessuna API: non nel catalogo, non nel JSON-LD. La
+ * pagina dell'annuncio però la mostra, e solo come tempo trascorso — la riga
+ * "Caricato 13 ore fa" sotto i dettagli. Si legge quella e si torna indietro.
+ *
+ * Il risultato è quindi approssimato, e tanto più grosso quanto più vecchio è
+ * l'annuncio: a "ore" vale l'ora giusta, a "2 mesi" vale più o meno la
+ * quindicina. L'interfaccia lo dichiara invece di fingere una precisione che
+ * non c'è. Per "nuovo oggi", che è la domanda vera, la lettura in ore basta.
+ * ------------------------------------------------------------------------ */
+const UNIT_MINUTES = [
+  // "ora" da sola vuol dire adesso, ma qui ha sempre un numero davanti e
+  // vale quindi l'unità oraria: "1 ora fa" non è "adesso".
+  [/^second|^attimo/, 0],
+  [/^minut/, 1],
+  [/^or[ae]$/, 60],
+  [/^giorn/, 60 * 24],
+  [/^settiman/, 60 * 24 * 7],
+  [/^mes/, 60 * 24 * 30],
+  [/^ann/, 60 * 24 * 365],
+];
+
+export function uploadedAgoToIso(text, now = Date.now()) {
+  const t = String(text || '').trim().toLowerCase();
+  if (!t) return null;
+  if (/^(adesso|poco fa|pochi secondi fa)$/.test(t)) return new Date(now).toISOString();
+  const m = t.match(/(\d+)\s*([a-zà-ù]+)/);
+  if (!m) return null;
+  const n = Number(m[1]);
+  const unit = UNIT_MINUTES.find(([re]) => re.test(m[2]));
+  if (!unit || !Number.isFinite(n)) return null;
+  return new Date(now - n * unit[1] * 60_000).toISOString();
+}
+
 /** Search gives titles only, so promising candidates need their page fetched. */
 export async function detail(url) {
   try {
     const r = await authed(url, 'text/html');
     if (!r.ok) return null;
     const html = await r.text();
+    // la data sta fuori dal JSON-LD, quindi si legge prima e a parte
+    const up = html.match(/itemProp="upload_date"[\s\S]{0,200}?>([^<>]{1,40})</);
+    const postedAt = up ? uploadedAgoToIso(up[1]) : null;
+
     const m = html.match(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/);
     if (!m) return null;
     const j = JSON.parse(m[1]);
     return { description: j.description || '',
              inStock: /InStock/i.test(j.offers?.availability || ''),
-             price: j.offers?.price != null ? Number(j.offers.price) : null };
+             price: j.offers?.price != null ? Number(j.offers.price) : null,
+             postedAt };
   } catch { return null; }
 }
 

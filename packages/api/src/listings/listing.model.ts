@@ -19,8 +19,14 @@ export class Listing {
   @Field() shippable!: boolean;
   /** Thumbnail from the source advert; null when it carried no photo. */
   @Field({ nullable: true }) imageUrl?: string;
-  /** Quando l'annuncio è stato pubblicato. Null su Vinted, che non lo dice. */
+  /** Quando l'annuncio è stato pubblicato sul marketplace. */
   @Field({ nullable: true }) postedAt?: string;
+  /**
+   * Vinted pubblica la data solo come tempo trascorso ("Caricato 13 ore fa"),
+   * quindi la sua è ricostruita e tanto più grossa quanto più vecchio è
+   * l'annuncio. Chi la mostra lo dice, invece di fingere l'ora esatta.
+   */
+  @Field() postedApprox!: boolean;
   /** Quando lo abbiamo visto noi per la prima volta. */
   @Field() firstSeen!: string;
   @Field({ nullable: true }) soldAt?: string;

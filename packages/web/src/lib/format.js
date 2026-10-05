@@ -89,38 +89,49 @@ const DATE_TIME = new Intl.DateTimeFormat('it-IT', {
   day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit',
 });
 const TIME_ONLY = new Intl.DateTimeFormat('it-IT', { hour: '2-digit', minute: '2-digit' });
+const DATE_ONLY = new Intl.DateTimeFormat('it-IT', { day: 'numeric', month: 'short' });
 
 /**
- * Quando l'annuncio è stato pubblicato. Subito e Wallapop lo dicono; Vinted no,
- * né nel catalogo né nella pagina del singolo annuncio, quindi lì si ripiega su
- * quando lo abbiamo visto noi — ed è dichiarato, perché le due cose non sono la
- * stessa e confonderle fa sembrare nuovo tutto il primo giorno di una ricerca.
+ * Quando l'annuncio è stato pubblicato sul marketplace, e nient'altro: niente
+ * ripiego su quando lo abbiamo visto noi, perché mostrare quello al posto della
+ * data vera è esattamente ciò che rendeva la colonna poco credibile. Null vuol
+ * dire che la data non si sa, e chi la mostra lo scrive.
  */
-export function publishedDate(row) {
-  return parseSqlTime(row?.postedAt) ?? parseSqlTime(row?.firstSeen);
-}
+export const publishedDate = (row) => parseSqlTime(row?.postedAt);
 
-export const hasRealDate = (row) => parseSqlTime(row?.postedAt) != null;
+export const hasRealDate = (row) => publishedDate(row) != null;
 
-/** Data e ora di pubblicazione, pronta da mostrare. */
+/**
+ * Data e ora di pubblicazione, pronta da mostrare. Null se non si sa.
+ *
+ * Una data ricostruita non porta l'orario: ricavarla da "2 settimane fa" dà
+ * l'ora in cui l'abbiamo letta, non quella in cui l'annuncio è uscito, e
+ * stamparla sarebbe una precisione inventata. Il giorno invece regge, ed è
+ * quello che serve per "nuovo oggi".
+ */
 export function addedAt(row) {
   const d = publishedDate(row);
   if (!d) return null;
   const today = new Date().toDateString() === d.toDateString();
+  if (row?.postedApprox) return today ? 'oggi' : DATE_ONLY.format(d);
   return today ? `oggi alle ${TIME_ONLY.format(d)}` : DATE_TIME.format(d);
 }
 
-/** Ore trascorse dalla pubblicazione, per il filtro per data. */
-export function hoursSinceAdded(row) {
-  const d = publishedDate(row);
-  return d ? (Date.now() - d.getTime()) / 3_600_000 : null;
+/** Quando lo abbiamo visto noi la prima volta: va nel tooltip, non nella riga. */
+export function seenAt(row) {
+  const d = parseSqlTime(row?.firstSeen);
+  return d ? DATE_TIME.format(d) : null;
 }
 
-export function ageLabel(days) {
-  if (days == null) return 'visto di recente';
-  if (days <= 0) return 'visto oggi per la prima volta';
-  if (days === 1) return 'visto ieri per la prima volta';
-  return `visto ${days} giorni fa per la prima volta`;
+/**
+ * Ore trascorse, per il filtro per data. Qui il ripiego resta: filtrare per
+ * pubblicazione buttando fuori tutto ciò che non ha una data nasconderebbe
+ * annunci solo perché il marketplace è avaro, ed è il contrario di quel che
+ * serve. Si usa la data vera dove c'è, l'avvistamento dove no.
+ */
+export function hoursSinceAdded(row) {
+  const d = publishedDate(row) ?? parseSqlTime(row?.firstSeen);
+  return d ? (Date.now() - d.getTime()) / 3_600_000 : null;
 }
 
 export function timeAgo(sqlTimestamp) {

@@ -1,127 +1,194 @@
-# The contract between packages/api (NestJS) and packages/web (urql).
-# Field names are camelCase here; the SQLite columns stay snake_case.
-
-enum SearchKind { COMPUTER, MEMORY, OTHER }
-enum Vendor { INTEL, AMD }
-
-type Search {
-  id: Int!
+# Il contratto GraphQL, generato dallo schema vero del server.
+#
+# Non si scrive a mano: la versione precedente era scritta a mano ed è andata
+# alla deriva senza che nessuno se ne accorgesse, le mancavano i preferiti,
+# l'anteprima dei filtri, lo storico, il progresso e metà dei campi di Listing.
+# Per rifarlo, con il server in ascolto:
+#
+#   pnpm --filter api schema
+#
+type Country {
+  code: String!
   name: String!
-  query: String!
-  kind: SearchKind!
-  minPrice: Float!
-  maxPrice: Float!
-  sources: [String!]!
-  countries: [String!]!
-  place: String
-  lat: Float
-  lon: Float
-  radiusKm: Int!
-  includeUnlocated: Boolean!
-  chassis: [String!]!
-  vendor: Vendor
-  brands: [String!]!
-  cpuTiers: [String!]!
-  minGen: Int!
-  minYear: Int!
-  minRam: Int!
-  minStorage: Int!
-  minReviews: Int!
-  enabled: Boolean!
-  lastRunAt: String
-  "live match count, so the sidebar needs no listings"
-  count: Int!
-  "of those, first matched today"
-  newCount: Int!
 }
 
-input SearchInput {
-  name: String
-  query: String
-  kind: SearchKind
-  minPrice: Float
-  maxPrice: Float
-  sources: [String!]
-  countries: [String!]
-  place: String
-  lat: Float
-  lon: Float
-  radiusKm: Int
-  includeUnlocated: Boolean
-  chassis: [String!]
-  vendor: Vendor
-  brands: [String!]
-  cpuTiers: [String!]
-  minGen: Int
-  minYear: Int
-  minRam: Int
-  minStorage: Int
-  minReviews: Int
-  enabled: Boolean
-}
-
-"""
-null on ramGb, storageGb, year and the rest means the advert never said so,
-which is not the same as the machine having none. Render it as such.
-"""
 type Listing {
-  id: Int!
-  source: String!
-  url: String!
-  title: String!
-  description: String
-  price: Float!
+  ageDays: Int!
+  cautions: [String!]!
+  chassis: String
   city: String
   country: String
-  shippable: Boolean!
-  firstSeen: String!
-  soldAt: String
-  isNew: Boolean!
-  "null when the advert states no location, not when it is far away"
-  distanceKm: Int
-  vendor: Vendor
-  family: String
-  model: String
-  chassis: String
   cpu: String
   cpuNum: String
+  description: String
+  distanceKm: Int
+  family: String
+  firstSeen: String!
   generation: Int
-  year: Int
-  ramGb: Int
-  ssdGb: Int
   hddGb: Int
-  storageGb: Int
-  memTotal: Int
+  id: Int!
+  imageUrl: String
+  isFavourite: Boolean!
+  isNew: Boolean!
+  memPer: Int
   memSpeed: Int
-  tiered: Boolean!
-  reviews: Int
+  memSticks: Int
+  memTotal: Int
+  model: String
   positivePct: Int
-  cautions: [String!]!
-  ageDays: Int!
-  priceMin: Float
+  postedApprox: Boolean!
+  postedAt: String
+  price: Float!
   priceMax: Float
-}
-
-type Place { label: String!, lat: Float!, lon: Float!, country: String! }
-type Country { code: String!, name: String! }
-type Stats { listings: Int!, live: Int!, sold: Int!, sellers: Int!, searches: Int! }
-type RunResult { found: Int!, offTopic: Int!, matched: Int! }
-
-type Query {
-  searches: [Search!]!
-  search(id: Int!): Search
-  listings(searchId: Int!): [Listing!]!
-  places(q: String!): [Place!]!
-  countries: [Country!]!
-  stats: Stats!
+  priceMin: Float
+  ramGb: Int
+  reviews: Int
+  shippable: Boolean!
+  soldAt: String
+  source: String!
+  ssdGb: Int
+  storageGb: Int
+  tiered: Boolean!
+  title: String!
+  url: String!
+  vendor: Vendor
+  year: Int
 }
 
 type Mutation {
   createSearch(input: SearchInput!): Search!
-  updateSearch(id: Int!, input: SearchInput!): Search!
   deleteSearch(id: Int!): Boolean!
-  "runs one search now; takes one to four minutes"
   runSearch(id: Int!): RunResult!
-  "fires every enabled search in the background, returns immediately"
+  setFavourite(listingId: Int!, value: Boolean!): Boolean!
   sweep: Boolean!
+  updateSearch(id: Int!, input: SearchInput!): Search!
+  updateSettings(sweepMinutes: Int!): Settings!
+}
+
+type Place {
+  country: String!
+  label: String!
+  lat: Float!
+  lon: Float!
+}
+
+type Query {
+  countries: [Country!]!
+  favourites: [Listing!]!
+  listings(searchId: Int!): [Listing!]!
+  places(q: String!): [Place!]!
+  preview(input: SearchInput!, searchId: Int!): [Listing!]!
+  runHistory(limit: Int): [RunRecord!]!
+  runProgress: [RunProgress!]!
+  search(id: Int!): Search
+  searches: [Search!]!
+  settings: Settings!
+  stats: Stats!
+}
+
+type RunProgress {
+  found: Int!
+  label: String!
+  phase: String!
+  searchId: Int!
+  startedAt: String!
+  step: Int!
+  steps: Int!
+}
+
+type RunRecord {
+  error: String
+  finishedAt: String
+  found: Int
+  id: Int!
+  matched: Int
+  offTopic: Int
+  searchId: Int
+  searchName: String
+  startedAt: String!
+  trigger: String!
+}
+
+type RunResult {
+  found: Int!
+  matched: Int!
+  offTopic: Int!
+}
+
+type Search {
+  brands: [String!]!
+  chassis: [String!]!
+  count: Int!
+  countries: [String!]!
+  cpuTiers: [String!]!
+  enabled: Boolean!
+  id: Int!
+  includeUnlocated: Boolean!
+  kind: SearchKind!
+  lastRunAt: String
+  lat: Float
+  lon: Float
+  maxPrice: Float!
+  minGen: Int!
+  minPrice: Float!
+  minRam: Int!
+  minReviews: Int!
+  minStorage: Int!
+  minYear: Int!
+  name: String!
+  newCount: Int!
+  place: String
+  query: String!
+  radiusKm: Int!
+  sources: [String!]!
+  vendor: Vendor
+}
+
+input SearchInput {
+  brands: [String!]
+  chassis: [String!]
+  countries: [String!]
+  cpuTiers: [String!]
+  enabled: Boolean
+  includeUnlocated: Boolean
+  kind: SearchKind
+  lat: Float
+  lon: Float
+  maxPrice: Float
+  minGen: Int
+  minPrice: Float
+  minRam: Int
+  minReviews: Int
+  minStorage: Int
+  minYear: Int
+  name: String
+  place: String
+  query: String
+  radiusKm: Int
+  sources: [String!]
+  vendor: Vendor
+}
+
+enum SearchKind {
+  COMPUTER
+  MEMORY
+  OTHER
+}
+
+type Settings {
+  defaultSweepMinutes: Int!
+  sweepMinutes: Int!
+}
+
+type Stats {
+  listings: Int!
+  live: Int!
+  searches: Int!
+  sellers: Int!
+  sold: Int!
+}
+
+enum Vendor {
+  AMD
+  INTEL
 }

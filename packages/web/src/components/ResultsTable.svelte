@@ -246,7 +246,7 @@
 <script>
   import {
     money, gb, distance, percent, cpuLabel, storageDetail,
-    isMemory, isMachine, isNew, ageLabel, addedAt, hasRealDate, sellerTone, stated, threads, modelLabel,
+    isMemory, isMachine, isNew, addedAt, hasRealDate, seenAt, sellerTone, stated, threads, modelLabel,
   } from '../lib/format.js';
 
   let { rows, search, onfavourite } = $props();
@@ -375,13 +375,19 @@
               {#each r.cautions ?? [] as c (c)}<span {...stylex.attrs(s.chip, s.chipCaution)}>{c}</span>{/each}
             </div>
             <div
-                    {...stylex.attrs(ui.hint, s.hintTop)}
-                    title={hasRealDate(r)
-                      ? "data di pubblicazione dell'annuncio"
-                      : 'questo marketplace non pubblica la data: è quando lo abbiamo visto noi'}
-                  >
-                    {hasRealDate(r) ? 'pubblicato' : 'visto'} {addedAt(r) ?? ageLabel(r.ageDays)}
-                  </div>
+              {...stylex.attrs(ui.hint, s.hintTop)}
+              title={!hasRealDate(r)
+                ? `Il marketplace non l'ha indicata. Noi lo abbiamo visto il ${seenAt(r)}.`
+                : r.postedApprox
+                  ? `Vinted la dà come tempo trascorso, quindi è ricostruita: ${seenAt(r)} il primo avvistamento.`
+                  : "Data di pubblicazione dell'annuncio sul marketplace."}
+            >
+              {#if !hasRealDate(r)}
+                data di pubblicazione non indicata
+              {:else}
+                pubblicato {r.postedApprox ? 'circa ' : ''}{addedAt(r)}
+              {/if}
+            </div>
               </div>
             </div>
           </td>

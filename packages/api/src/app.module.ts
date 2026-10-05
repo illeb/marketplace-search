@@ -10,6 +10,7 @@ import { ListingsResolver } from './listings/listings.resolver.js';
 import { MetaService } from './meta/meta.service.js';
 import { MetaResolver } from './meta/meta.resolver.js';
 import { SweepService } from './sweep/sweep.service.js';
+import { SettingsResolver } from './settings/settings.resolver.js';
 import { CONFIG } from './hunter/config.mjs';
 
 @Module({
@@ -33,6 +34,7 @@ import { CONFIG } from './hunter/config.mjs';
     ListingsService, ListingsResolver,
     MetaService, MetaResolver,
     SweepService,
+    SettingsResolver,
   ],
 })
 export class AppModule {}

@@ -160,6 +160,55 @@ CREATE TABLE IF NOT EXISTS geocache (
 );
 `);
 
+// Impostazioni generali: una riga per chiave, perché ce ne sono poche e si
+// leggono di rado. Il valore resta testo e chi legge lo converte, così
+// aggiungere un'impostazione non vuol dire toccare lo schema.
+db.exec(`
+CREATE TABLE IF NOT EXISTS settings (
+  key TEXT PRIMARY KEY,
+  value TEXT NOT NULL,
+  set_at TEXT DEFAULT (datetime('now'))
+);
+`);
+
+/** Il valore salvato, o `fallback` se nessuno l'ha mai scelto. */
+export function getSetting(key, fallback = null) {
+  const row = db.prepare('SELECT value FROM settings WHERE key=?').get(key);
+  return row ? row.value : fallback;
+}
+
+export function setSetting(key, value) {
+  db.prepare(`INSERT INTO settings (key, value, set_at) VALUES (?,?,datetime('now'))
+    ON CONFLICT(key) DO UPDATE SET value=excluded.value, set_at=excluded.set_at`)
+    .run(key, String(value));
+  return String(value);
+}
+
+/**
+ * Gli annunci che nessuna ricerca rivendica più e che non sono fra i preferiti.
+ *
+ * Cancellare una ricerca porta via le sue corrispondenze in cascata, ma non gli
+ * annunci: restavano lì per sempre, e con qualche migliaio di righe per passata
+ * è spazio che non torna più da solo. specs e price_history seguono in cascata.
+ * I venditori invece restano: sono una cache di reputazione che costa una
+ * richiesta di rete a riempire di nuovo, e occupano pochissimo.
+ */
+export function pruneOrphanListings() {
+  return db.prepare(`DELETE FROM listings
+    WHERE NOT EXISTS (SELECT 1 FROM matches m WHERE m.listing_id = listings.id)
+      AND NOT EXISTS (SELECT 1 FROM favourites f WHERE f.listing_id = listings.id)`)
+    .run().changes;
+}
+
+/**
+ * Cancellare lascia pagine libere dentro il file, che non si restringe da solo.
+ * VACUUM lo riscrive: blocca, quindi si fa solo dopo una potatura che ha tolto
+ * qualcosa, e mai dentro una transazione.
+ */
+export function compact() {
+  db.exec('VACUUM');
+}
+
 export function upsertListing(rec) {
   const existing = db.prepare('SELECT id, price FROM listings WHERE source=? AND source_id=?')
     .get(rec.source, String(rec.sourceId));

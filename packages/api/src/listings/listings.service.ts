@@ -80,10 +80,12 @@ export class ListingsService {
       shippable: !!r.shippable,
       imageUrl: r.image_url ?? undefined,
       postedAt: r.posted_at ?? undefined,
+      postedApprox: r.source === 'vinted' && r.posted_at != null,
       firstSeen: r.first_seen,
       soldAt: r.sold_at ?? undefined,
-      // "nuovo" vuol dire pubblicato oggi. Dove il marketplace non pubblica una
-      // data si ripiega su quando lo abbiamo visto, che è il meglio disponibile.
+      // "nuovo" vuol dire pubblicato oggi. Resta il ripiego su quando lo abbiamo
+      // visto per le righe senza data: su Vinted la data arriva dalla pagina del
+      // singolo annuncio, che non viene letta per tutti.
       isNew: r.posted_at
         ? String(r.posted_at).slice(0, 10) === today
         : String(r.first_seen ?? '').slice(0, 10) === today,

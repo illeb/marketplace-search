@@ -12,7 +12,8 @@
     "dev": "nest start --watch",
     "start": "node --no-warnings dist/main.js",
     "worker": "node --no-warnings src/hunter/worker.mjs",
-    "once": "node --no-warnings src/hunter/worker.mjs --once"
+    "once": "node --no-warnings src/hunter/worker.mjs --once",
+    "schema": "node --no-warnings scripts/schema.mjs"
   },
   "dependencies": {
     "@apollo/server": "^5.5.1",

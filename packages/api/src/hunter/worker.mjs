@@ -141,26 +141,38 @@ async function runSearchInner(search) {
   // ---- 3. detail fetches, cheapest first ----------------------------------
   // Vinted returns titles only. Spend the budget on the cheapest unresolved
   // candidates rather than whichever happened to arrive first.
-  if (search.kind === 'computer') {
+  // Vale per ogni tipo di ricerca, non solo per i computer: la pagina porta la
+  // descrizione, ma anche la data di pubblicazione, che il catalogo non dà e
+  // senza la quale "nuovo oggi" su Vinted non sarebbe rispondibile.
+  {
+    // Una macchina già descritta per intero non ha bisogno della pagina; per
+    // tutto il resto manca comunque la data, quindi la lettura si giustifica.
+    const resolved = ({ spec }) => search.kind === 'computer'
+      && spec.ram >= (search.min_ram || 0) && spec.storage >= (search.min_storage || 0)
+      && spec.ram > 0 && spec.storage > 0;
+    // Un annuncio fuori dalla forbice di prezzo non corrisponderà mai, quindi
+    // leggerne la pagina è budget buttato: il prezzo è l'unico filtro che si può
+    // applicare prima di spenderlo.
+    const inPrice = ({ r }) => r.price >= (search.min_price || 0)
+      && (!search.max_price || r.price <= search.max_price);
     const needing = candidates
-      .filter(({ r, spec }) => r.needsDetail &&
-        !(spec.ram >= (search.min_ram || 0) && spec.storage >= (search.min_storage || 0) &&
-          spec.ram > 0 && spec.storage > 0))
+      .filter((c) => c.r.needsDetail && inPrice(c) && !resolved(c))
       .sort((a, b) => a.r.price - b.r.price)
       .slice(0, CONFIG.vinted.maxDetailFetches);
-    let fetched = 0;
+    let fetched = 0, dated = 0;
     for (const c of needing) {
       const d = await vinted.detail(c.r.url);
       fetched++;
       await sleep(CONFIG.politeness.detailMs);
       if (!d) continue;
       if (!d.inStock) { c.gone = true; continue; }
+      if (d.postedAt) { c.r.postedAt = d.postedAt; dated++; }
       c.r.description = d.description;
       const better = parseListing(c.r.title, c.r.description, search.kind);
       if (better) c.spec = better;
       if (!isRelevant(tokens, c.r.title, c.r.description)) c.gone = true;
     }
-    if (fetched) log(`  ${fetched} detail fetches (cheapest first)`);
+    if (fetched) log(`  ${fetched} detail fetches (cheapest first), ${dated} dated`);
   }
 
   setProgress(Number(search.id), {
@@ -187,6 +199,36 @@ async function runSearchInner(search) {
       matched++;
     } else {
       db.prepare('DELETE FROM matches WHERE search_id=? AND listing_id=?').run(search.id, listingId);
+    }
+  }
+
+  // ---- 4b. le date che mancano a ciò che si vede --------------------------
+  // Le letture di pagina della fase 3 servono a decidere se un annuncio
+  // corrisponde, e si spendono dal più economico in giù: le righe che poi
+  // finiscono davvero in lista spesso non sono fra quelle, e restavano senza
+  // data. Qui si torna solo sulle corrispondenze Vinted che ne sono ancora
+  // prive — l'unica fonte che non la pubblica — e quel che si trova resta
+  // salvato, quindi questa fase si svuota da sola col passare delle passate.
+  if (wanted.includes('vinted')) {
+    const missing = db.prepare(`SELECT l.id, l.url FROM listings l
+      JOIN matches m ON m.listing_id = l.id
+      WHERE m.search_id = ? AND l.source = 'vinted'
+        AND l.posted_at IS NULL AND l.sold_at IS NULL
+      ORDER BY l.price ASC LIMIT ?`).all(search.id, CONFIG.vinted.maxDateFetches);
+
+    if (missing.length) {
+      setProgress(Number(search.id), {
+        phase: 'dates', step: steps, steps, label: 'date di pubblicazione', found: pool.size,
+      });
+      let dated = 0;
+      for (const row of missing) {
+        const d = await vinted.detail(row.url);
+        await sleep(CONFIG.politeness.detailMs);
+        if (!d?.postedAt) continue;
+        db.prepare('UPDATE listings SET posted_at=? WHERE id=?').run(d.postedAt, row.id);
+        dated++;
+      }
+      log(`  ${missing.length} date mancanti cercate, ${dated} trovate`);
     }
   }
 

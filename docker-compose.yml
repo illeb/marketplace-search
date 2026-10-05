@@ -17,7 +17,7 @@ services:
       PORT: "8080"
       DB_PATH: /data/hunter.db
       # every enabled search is swept this often
-      SWEEP_MINUTES: "60"
+      SWEEP_MINUTES: "360"
       MISSES_BEFORE_SOLD: "2"
       # Vinted rate-limits; raise these only if it stops refusing sessions
       VINTED_HOST: vinted.it

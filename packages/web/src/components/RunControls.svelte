@@ -48,7 +48,7 @@
 <script>
   import { timeAgo } from '../lib/format.js';
 
-  let { search, running, runResult, runError, progress = null, onrun } = $props();
+  let { search, running, runningElsewhere = null, runResult, runError, progress = null, onrun } = $props();
 
   const lastRun = $derived(timeAgo(search?.lastRunAt));
   const sources = $derived((search?.sources ?? []).join(', '));
@@ -70,6 +70,9 @@
       {:else if runResult}
         Letti {runResult.found} &middot; {runResult.offTopic} fuori tema &middot;
         <b>{runResult.matched} corrispondenti</b>
+      {:else if runningElsewhere}
+        Scansione in corso su «{runningElsewhere}»: una per volta, così i marketplace
+        non vengono interrogati in parallelo.
       {:else if lastRun}
         Ultima scansione {lastRun} &middot; legge {sources || 'i marketplace'}, solo per questa ricerca
       {:else}
@@ -95,8 +98,9 @@
 
   <button
     type="button"
-    disabled={!search || running}
+    disabled={!search || running || !!runningElsewhere}
     onclick={onrun}
+    title={runningElsewhere ? `Aspetta che finisca «${runningElsewhere}»` : undefined}
     {...stylex.attrs(ui.button, ui.primary, s.btn)}
   >
     {#if running}

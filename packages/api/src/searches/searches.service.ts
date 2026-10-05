@@ -1,5 +1,5 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
-import { db } from '../hunter/db.mjs';
+import { db, pruneOrphanListings, compact } from '../hunter/db.mjs';
 import { runSearch, sweep, refilter, matchingIds, allProgress } from '../hunter/worker.mjs';
 import {
   Search, SearchInput, SearchKind, Vendor, RunResult, RunProgress, RunRecord,
@@ -127,8 +127,16 @@ export class SearchesService {
     return this.getOrThrow(id);
   }
 
+  /**
+   * Via la ricerca, e con lei gli annunci che restano senza nessuno che li
+   * rivendichi. I preferiti sono messi al riparo dalla potatura stessa, perché
+   * sono salvati a mano e non devono dipendere dalla ricerca che li ha trovati.
+   */
   remove(id: number): boolean {
-    return db.prepare('DELETE FROM searches WHERE id=?').run(id).changes > 0;
+    const gone = db.prepare('DELETE FROM searches WHERE id=?').run(id).changes > 0;
+    if (!gone) return false;
+    if (pruneOrphanListings() > 0) compact();
+    return true;
   }
 
   /**

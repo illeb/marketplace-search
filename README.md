@@ -292,21 +292,49 @@ reads Subito's `item-sold-badge`, Wallapop's `sold` flag, and Vinted's availabil
 | Vinted | bootstrapped session cookie | **title only** | page number | `api/v2/users/{id}` |
 
 Vinted is the awkward one. Its search returns titles without specifications, so promising
-candidates each cost a page fetch for the embedded JSON, capped by `VINTED_MAX_DETAILS` per
+candidates each cost a page fetch — for the embedded JSON and for the upload date, which Vinted states only as elapsed time on the item page — capped by `VINTED_MAX_DETAILS` per
 sweep. It also rate-limits hard enough that the session is rotated every
 `VINTED_ROTATE_EVERY` requests.
 
+## Deleting a search
+
+Deleting a search takes its listings with it — every one that no search claims
+any more and that is not saved under Preferiti. Without that, 62% of the first
+real database was dead weight: 2,354 listings out of 3,821, left behind by
+searches deleted months earlier, plus everything a sweep read and no filter kept.
+`specs` and `price_history` follow by cascade; sellers stay, because they are a
+reputation cache that costs a network request to refill and almost no space.
+
+The same pass runs once at boot, which is what clears what has already piled up.
+A listing pruned this way is not lost: the next sweep reads it again from the
+marketplace. Only its stored price history restarts.
+
+## Publication dates
+
+"Nuovo oggi" is about the advert's publication date, not about when the sweep
+first saw it. Subito and Wallapop state it outright. Vinted states it nowhere in
+its API — not in the catalogue, not in the item JSON-LD — but the item page shows
+it as elapsed time ("Caricato 13 ore fa"), so it is read from there and turned
+back into an instant. That costs one page fetch per advert, so only the cheapest
+`VINTED_MAX_DETAILS` of each search get one, and the rest say so rather than
+showing a date nobody stated. A reconstructed date is labelled "circa", because
+at "2 mesi fa" it is only accurate to the fortnight.
+
 ## Settings
+
+The scan rate is set in the app, under Impostazioni, and applies without a
+restart. `SWEEP_MINUTES` is only the starting value for a database that has never
+had one chosen.
 
 | Variable | Default | Meaning |
 |---|---|---|
 | `PORT` | 8080 | HTTP port |
 | `DB_PATH` | `./data/hunter.db` | SQLite file |
-| `SWEEP_MINUTES` | 60 | how often every enabled search runs |
+| `SWEEP_MINUTES` | 360 | starting rate for the scheduled sweep; once a rate is chosen under Impostazioni it is stored in the database and wins |
 | `MISSES_BEFORE_SOLD` | 2 | consecutive absences before a listing counts as sold |
 | `VINTED_HOST` | vinted.it | marketplace domain |
 | `VINTED_ROTATE_EVERY` | 10 | requests before the session is rebuilt |
-| `VINTED_MAX_DETAILS` | 40 | per-sweep budget for Vinted page fetches |
+| `VINTED_MAX_DETAILS` | 120 | per-search budget for Vinted page fetches, which carry the specs and the only publication date Vinted publishes |
 
 ## API
 

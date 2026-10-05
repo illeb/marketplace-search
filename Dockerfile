@@ -40,7 +40,7 @@ USER node
 ENV NODE_ENV=production \
     DB_PATH=/data/hunter.db \
     PORT=8080 \
-    SWEEP_MINUTES=60 \
+    SWEEP_MINUTES=360 \
     TZ=Europe/Rome
 
 VOLUME ["/data"]

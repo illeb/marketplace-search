@@ -59,6 +59,13 @@
       position: { default: 'sticky', '@media (max-width: 960px)': 'static' },
       top: 14,
       minWidth: 0,
+      // Appiccicata e più alta della finestra, la colonna non si può raggiungere
+      // in fondo: la pagina scorre il contenuto centrale, non lei. Con i pannelli
+      // aperti sotto le ricerche succedeva, e il pannello restava fuori schermo.
+      maxHeight: { default: 'calc(100vh - 28px)', '@media (max-width: 960px)': 'none' },
+      overflowY: { default: 'auto', '@media (max-width: 960px)': 'visible' },
+      // lo spazio per la barra di scorrimento, così il bordo dei riquadri non si taglia
+      paddingInlineEnd: { default: 2, '@media (max-width: 960px)': 0 },
     },
     main: { display: 'flex', flexDirection: 'column', gap: 12, minWidth: 0 },
     histPanel: { marginBlockStart: 10, paddingBlock: 8, paddingInline: 10 },
@@ -108,6 +115,7 @@
   import ResultsTable from './components/ResultsTable.svelte';
   import ViewFilters from './components/ViewFilters.svelte';
   import RunControls from './components/RunControls.svelte';
+  import SettingsPanel from './components/SettingsPanel.svelte';
 
   /* ---- server state ----------------------------------------------------- */
   let searches = $state([]);
@@ -121,6 +129,11 @@
   let progress = $state([]);            // scansioni in corso, dal server
   let history = $state(null);           // storico, caricato su richiesta
   let showHistory = $state(false);
+  let settings = $state(null);          // impostazioni generali, dal server
+  let showSettings = $state(false);
+  let savingSettings = $state(false);
+  let settingsError = $state(null);
+  let settingsSavedAt = $state(null);
   let booted = $state(false);
   let error = $state(null);
 
@@ -131,10 +144,14 @@
   let saving = $state(false);
   let deletingId = $state(null);
 
-  /* ---- running ---------------------------------------------------------- */
-  let running = $state(false);
-  let runResult = $state(null);
-  let runError = $state(null);
+  /* ---- running ----------------------------------------------------------
+   * Quale ricerca sta girando, non "sta girando qualcosa": con un booleano solo
+   * il pulsante restava disabilitato anche passando a un'altra ricerca, e
+   * sembrava che la scansione le stesse prendendo tutte. Anche l'esito è per
+   * ricerca, o tornando indietro si leggerebbe il risultato di un'altra.
+   * ------------------------------------------------------------------------ */
+  let runningId = $state(null);
+  let runOutcome = $state({});          // search id -> { result } | { error }
   let sweeping = $state(false);
   let loadingRows = $state(false);
 
@@ -146,6 +163,26 @@
 
   const selected = $derived(searches.find((s) => s.id === selectedId) ?? null);
   const selectedProgress = $derived(progress.find((p) => p.searchId === selectedId) ?? null);
+  const running = $derived(runningId != null && runningId === selectedId);
+  const runResult = $derived(runOutcome[selectedId]?.result ?? null);
+  const runError = $derived(runOutcome[selectedId]?.error ?? null);
+  // Una scansione a mano per volta: il nome serve a dire quale, invece di
+  // lasciare un pulsante spento senza spiegazione.
+  const runningElsewhere = $derived(
+    runningId != null && runningId !== selectedId
+      ? (searches.find((x) => x.id === runningId)?.name ?? 'un\'altra ricerca')
+      : null,
+  );
+
+  const sweepLabel = $derived.by(() => {
+    const m = settings?.sweepMinutes;
+    if (m == null) return null;
+    if (m === 0) return 'che però è spenta';
+    if (m < 60) return `ogni ${m} minuti`;
+    if (m === 60) return 'ogni ora';
+    if (m % 60 === 0) return m === 1440 ? 'una volta al giorno' : `ogni ${m / 60} ore`;
+    return `ogni ${m} minuti`;
+  });
   const draft = $derived(pendingNew ?? drafts[selectedId] ?? null);
   const changed = $derived(
     !draft ? [] : pendingNew ? SEARCH_FIELDS.slice() : changedFields(draft, selected),
@@ -219,8 +256,6 @@
     selectedId = id;
     pendingNew = null;
     deletingId = null;
-    runResult = null;
-    runError = null;
     if (id && !drafts[id]) {
       const s = searches.find((x) => x.id === id);
       if (s) drafts[id] = toDraft(s);
@@ -297,7 +332,7 @@
     progressTimer = setInterval(async () => {
       try {
         progress = await api.runProgress();
-        if (!progress.length && !running && !sweeping) {
+        if (!progress.length && runningId == null && !sweeping) {
           clearInterval(progressTimer);
           progressTimer = null;
         }
@@ -313,6 +348,29 @@
   function toggleHistory() {
     showHistory = !showHistory;
     if (showHistory && !history) loadHistory();
+  }
+
+  async function loadSettings() {
+    try { settings = await api.settings(); }
+    catch (e) { settingsError = `Impostazioni non caricate: ${e.message}`; }
+  }
+
+  function toggleSettings() {
+    showSettings = !showSettings;
+    if (showSettings && !settings) loadSettings();
+  }
+
+  async function saveSettings(sweepMinutes) {
+    savingSettings = true;
+    settingsError = null;
+    try {
+      settings = await api.updateSettings(sweepMinutes);
+      settingsSavedAt = Date.now();
+    } catch (e) {
+      settingsError = e.message;
+    } finally {
+      savingSettings = false;
+    }
   }
 
   async function loadFavourites() {
@@ -349,6 +407,8 @@
       booted = true;
       if (s.length) select(s[0].id);
       refreshStats();
+      // serve anche a chiuso: la spiegazione di "Scansiona tutti" dice a che ritmo
+      loadSettings();
     } catch (e) {
       error = `Could not reach the API: ${e.message}`;
       booted = true;
@@ -393,8 +453,6 @@
   function startNew() {
     pendingNew = newDraft();
     deletingId = null;
-    runResult = null;
-    runError = null;
   }
 
   const cancelNew = () => { pendingNew = null; };
@@ -421,21 +479,21 @@
   /* ---- running ----------------------------------------------------------- */
 
   async function run() {
-    if (!selected || running) return;
-    running = true;
-    runResult = null;
-    runError = null;
+    if (!selected || runningId != null) return;
+    const id = selected.id;
+    runningId = id;
+    runOutcome = { ...runOutcome, [id]: {} };
     progress = [];
     watchProgress();
-    const id = selected.id;
     try {
-      runResult = await api.runSearch(id);
+      const result = await api.runSearch(id);
+      runOutcome = { ...runOutcome, [id]: { result } };
       history = null;
       await Promise.all([loadRows(id, { force: true }), refreshSearches(), refreshStats()]);
     } catch (e) {
-      runError = e.message;
+      runOutcome = { ...runOutcome, [id]: { error: e.message } };
     } finally {
-      running = false;
+      runningId = null;
     }
   }
 
@@ -521,7 +579,20 @@
       onfavourites={showFavourites}
       {showHistory}
       onhistory={toggleHistory}
+      {showSettings}
+      onsettings={toggleSettings}
+      {sweepLabel}
     />
+
+    {#if showSettings}
+      <SettingsPanel
+        {settings}
+        saving={savingSettings}
+        error={settingsError}
+        savedAt={settingsSavedAt}
+        onsave={saveSettings}
+      />
+    {/if}
 
     {#if showHistory}
       <div {...stylex.attrs(ui.panel, s.histPanel)}>
@@ -588,7 +659,15 @@
       </p>
     {:else}
       {#if !pendingNew}
-        <RunControls search={selected} {running} {runResult} {runError} progress={selectedProgress} onrun={run} />
+        <RunControls
+          search={selected}
+          {running}
+          {runningElsewhere}
+          {runResult}
+          {runError}
+          progress={selectedProgress}
+          onrun={run}
+        />
       {/if}
 
       <FilterEditor
