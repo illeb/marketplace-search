@@ -84,6 +84,7 @@ type Query {
   searches: [Search!]!
   settings: Settings!
   stats: Stats!
+  version: Version!
 }
 
 type RunProgress {
@@ -193,4 +194,9 @@ type Stats {
 enum Vendor {
   AMD
   INTEL
+}
+
+type Version {
+  builtAt: String
+  sha: String
 }

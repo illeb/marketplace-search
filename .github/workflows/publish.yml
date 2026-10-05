@@ -34,10 +34,18 @@ jobs:
             type=raw,value=latest
             type=sha,format=short
 
+      # L'ora della build va calcolata qui: i campi dell'evento dicono quando il
+      # repository è cambiato, non quando l'immagine è stata costruita.
+      - id: now
+        run: echo "ts=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "$GITHUB_OUTPUT"
+
       - uses: docker/build-push-action@v6
         with:
           context: .
           push: true
+          build-args: |
+            GIT_SHA=${{ github.sha }}
+            BUILT_AT=${{ steps.now.outputs.ts }}
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           # the Proxmox host is amd64; add arm64 here if that ever changes

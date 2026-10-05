@@ -67,6 +67,7 @@
       // lo spazio per la barra di scorrimento, così il bordo dei riquadri non si taglia
       paddingInlineEnd: { default: 2, '@media (max-width: 960px)': 0 },
     },
+    build: { margin: 0, fontSize: 11, color: t.faint, cursor: 'help' },
     main: { display: 'flex', flexDirection: 'column', gap: 12, minWidth: 0 },
     histPanel: { marginBlockStart: 10, paddingBlock: 8, paddingInline: 10 },
     histEmpty: { margin: 0 },
@@ -129,6 +130,7 @@
   let progress = $state([]);            // scansioni in corso, dal server
   let history = $state(null);           // storico, caricato su richiesta
   let showHistory = $state(false);
+  let version = $state(null);           // da quale commit gira il server
   let settings = $state(null);          // impostazioni generali, dal server
   let showSettings = $state(false);
   let savingSettings = $state(false);
@@ -409,6 +411,7 @@
       refreshStats();
       // serve anche a chiuso: la spiegazione di "Scansiona tutti" dice a che ritmo
       loadSettings();
+      api.version().then((v) => (version = v)).catch(() => {});
     } catch (e) {
       error = `Could not reach the API: ${e.message}`;
       booted = true;
@@ -549,6 +552,16 @@
     <p {...stylex.attrs(ui.mono, s.stats)}>
       {stats.listings} annunci · {stats.live} attivi · {stats.sold} venduti ·
       {stats.sellers} venditori · {stats.searches} ricerche
+    </p>
+  {/if}
+  {#if version}
+    <p
+      {...stylex.attrs(ui.mono, s.build)}
+      title={version.sha
+        ? `commit ${version.sha}${version.builtAt ? ` · immagine costruita il ${dateTime(version.builtAt)}` : ''}`
+        : 'nessuna versione impressa: si sta girando da sorgente, non da immagine'}
+    >
+      {version.sha ? version.sha.slice(0, 7) : 'sviluppo'}
     </p>
   {/if}
 </header>

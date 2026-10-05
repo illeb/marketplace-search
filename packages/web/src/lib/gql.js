@@ -77,6 +77,7 @@ export const RUN_HISTORY = gql`
 export const PLACES    = gql`query Places($q: String!) { places(q: $q) { label lat lon country } }`;
 export const COUNTRIES = gql`query Countries { countries { code name } }`;
 export const STATS     = gql`query Stats { stats { listings live sold sellers searches } }`;
+export const VERSION   = gql`query Version { version { sha builtAt } }`;
 
 export const CREATE_SEARCH = gql`
   mutation CreateSearch($input: SearchInput!) { createSearch(input: $input) { ...SearchFields } }
@@ -126,6 +127,7 @@ export const api = {
   places:    (s) => q(PLACES, { q: s }).then((d) => d.places),
   countries: () => q(COUNTRIES).then((d) => d.countries),
   stats:     () => q(STATS).then((d) => d.stats),
+  version:   () => q(VERSION).then((d) => d.version),
 
   createSearch: (input) => m(CREATE_SEARCH, { input }).then((d) => d.createSearch),
   updateSearch: (id, input) => m(UPDATE_SEARCH, { id, input }).then((d) => d.updateSearch),

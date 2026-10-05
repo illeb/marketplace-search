@@ -15,6 +15,13 @@ export class Country {
 }
 
 @ObjectType()
+export class Version {
+  /** Il commit da cui è stata costruita l'immagine; null se si gira da sorgente. */
+  @Field({ nullable: true }) sha?: string;
+  @Field({ nullable: true }) builtAt?: string;
+}
+
+@ObjectType()
 export class Stats {
   @Field(() => Int) listings!: number;
   @Field(() => Int) live!: number;

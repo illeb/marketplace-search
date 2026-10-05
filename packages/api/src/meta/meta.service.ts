@@ -1,7 +1,8 @@
 import { Injectable } from '@nestjs/common';
 import { db } from '../hunter/db.mjs';
+import { CONFIG } from '../hunter/config.mjs';
 import { lookupPlace, EUROPE } from '../hunter/geo.mjs';
-import { Country, Place, Stats } from './meta.model.js';
+import { Country, Place, Stats, Version } from './meta.model.js';
 
 @Injectable()
 export class MetaService {
@@ -13,6 +14,10 @@ export class MetaService {
 
   countries(): Country[] {
     return EUROPE.map(([code, name]: [string, string]) => ({ code, name }));
+  }
+
+  version(): Version {
+    return { sha: CONFIG.version ?? undefined, builtAt: CONFIG.builtAt ?? undefined };
   }
 
   stats(): Stats {

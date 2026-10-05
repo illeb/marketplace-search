@@ -1,5 +1,10 @@
 export const CONFIG = {
   port: Number(process.env.PORT || 8080),
+  // Impressi dentro l'immagine al momento della build: sono l'unico modo
+  // onesto di sapere, guardando un contenitore acceso, da quale commit viene.
+  // Fuori dall'immagine non ci sono, e allora si sta girando da sorgente.
+  version: process.env.APP_VERSION || null,
+  builtAt: process.env.APP_BUILT_AT || null,
   dbPath: process.env.DB_PATH || new URL('../../data/hunter.db', import.meta.url).pathname,
   // Static root. In the workspace the web package builds next door; in the
   // image the compiled files are copied in and WEB_ROOT points at them.

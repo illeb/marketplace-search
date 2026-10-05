@@ -1,6 +1,6 @@
 import { Args, Query, Resolver } from '@nestjs/graphql';
 import { MetaService } from './meta.service.js';
-import { Country, Place, Stats } from './meta.model.js';
+import { Country, Place, Stats, Version } from './meta.model.js';
 
 @Resolver()
 export class MetaResolver {
@@ -14,4 +14,7 @@ export class MetaResolver {
 
   @Query(() => Stats)
   stats(): Stats { return this.meta.stats(); }
+
+  @Query(() => Version)
+  version(): Version { return this.meta.version(); }
 }

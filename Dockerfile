@@ -25,6 +25,12 @@ RUN pnpm --filter api --prod deploy --legacy /runtime
 # ---- runtime ---------------------------------------------------------------
 FROM node:24-alpine AS runtime
 
+# Il commit e il momento della build, passati dal workflow. Senza, guardare un
+# contenitore acceso non dice da dove viene, e l'unico modo di capire se era
+# aggiornato era cercare a mano indizi dentro ai file compilati.
+ARG GIT_SHA=""
+ARG BUILT_AT=""
+
 WORKDIR /app
 
 COPY --from=build /runtime/node_modules ./packages/api/node_modules
@@ -41,7 +47,9 @@ COPY --from=build /build/packages/api/scripts ./packages/api/scripts
 RUN mkdir -p /data && chown -R node:node /data /app
 USER node
 
-ENV NODE_ENV=production \
+ENV APP_VERSION=$GIT_SHA \
+    APP_BUILT_AT=$BUILT_AT \
+    NODE_ENV=production \
     DB_PATH=/data/hunter.db \
     PORT=8080 \
     SWEEP_MINUTES=360 \
