@@ -19,7 +19,7 @@
     line: { marginBlock: 2, marginBlockEnd: 0 },
     bad: { color: t.bad },
     btn: { display: 'inline-flex', alignItems: 'center', gap: 7 },
-    bar: {
+    track: {
       width: '100%',
       height: 4,
       marginBlockStart: 8,
@@ -82,7 +82,7 @@
         aria-valuenow={progress?.step ?? 0}
         aria-valuemin="0"
         aria-valuemax={progress?.steps ?? 1}
-        {...stylex.attrs(s.bar)}
+        {...stylex.attrs(s.track)}
       >
         <!-- la larghezza è l'unica cosa dinamica, quindi resta un attributo style -->
         <div

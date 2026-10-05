@@ -148,12 +148,13 @@
     thumbWrap: { position: 'relative', flexGrow: 0, flexShrink: 0, lineHeight: 0 },
     // the enlarged copy floats out of the cell, so the row keeps its height
     zoom: {
-      position: 'absolute',
-      insetInlineStart: 0,
-      top: 0,
-      zIndex: 60,
-      width: 260,
-      height: 260,
+      position: 'fixed',
+      zIndex: 200,
+      width: 300,
+      height: 300,
+      // app.css imposta img { max-width: 100% }: senza questo l'anteprima resta
+      // larga quanto la miniatura che la apre
+      maxWidth: 'none',
       objectFit: 'contain',
       padding: 6,
       backgroundColor: t.surface,
@@ -245,13 +246,32 @@
 <script>
   import {
     money, gb, distance, percent, cpuLabel, storageDetail,
-    isMemory, isMachine, isNew, ageLabel, addedAt, sellerTone, stated, threads, modelLabel,
+    isMemory, isMachine, isNew, ageLabel, addedAt, hasRealDate, sellerTone, stated, threads, modelLabel,
   } from '../lib/format.js';
 
   let { rows, search, onfavourite } = $props();
 
-  // which thumbnail is enlarged under the pointer
-  let zoomed = $state(null);
+  // L'anteprima ingrandita: url e posizione sullo schermo, calcolate dal
+  // riquadro della miniatura sotto il puntatore.
+  let zoom = $state(null);
+  const ZOOM = 300;
+
+  function openZoom(row, event) {
+    if (!row.imageUrl) return;
+    const r = event.currentTarget.getBoundingClientRect();
+    const gap = 10;
+    // a destra della miniatura se ci sta, altrimenti a sinistra
+    const right = r.right + gap;
+    const left = right + ZOOM <= window.innerWidth ? right : Math.max(gap, r.left - gap - ZOOM);
+    // centrata sulla riga ma sempre dentro lo schermo
+    const top = Math.min(
+      Math.max(gap, r.top + r.height / 2 - ZOOM / 2),
+      Math.max(gap, window.innerHeight - ZOOM - gap),
+    );
+    zoom = { url: row.imageUrl, left, top };
+  }
+
+  const closeZoom = () => { zoom = null; };
 
   // Default direction per column: cheapest first, newest first, best-reviewed first.
   const DEFAULT_DIR = { price: 'asc', year: 'desc', reviews: 'desc' };
@@ -320,8 +340,8 @@
               {#if r.imageUrl}
                 <span
                   role="presentation"
-                  onmouseenter={() => (zoomed = r.id)}
-                  onmouseleave={() => (zoomed = null)}
+                  onmouseenter={(e) => openZoom(r, e)}
+                  onmouseleave={closeZoom}
                   {...stylex.attrs(s.thumbWrap)}
                 >
                   <img
@@ -333,9 +353,6 @@
                     onerror={(e) => (e.currentTarget.hidden = true)}
                     {...stylex.attrs(s.thumb)}
                   />
-                  {#if zoomed === r.id}
-                    <img src={r.imageUrl} alt="" referrerpolicy="no-referrer" {...stylex.attrs(s.zoom)} />
-                  {/if}
                 </span>
               {/if}
               <button
@@ -357,8 +374,13 @@
               {#if modelLabel(r)}<span {...stylex.attrs(s.chip)}>{modelLabel(r)}</span>{/if}
               {#each r.cautions ?? [] as c (c)}<span {...stylex.attrs(s.chip, s.chipCaution)}>{c}</span>{/each}
             </div>
-            <div {...stylex.attrs(ui.hint, s.hintTop)} title={addedAt(r) ?? ''}>
-                    aggiunto {addedAt(r) ?? ageLabel(r.ageDays)}
+            <div
+                    {...stylex.attrs(ui.hint, s.hintTop)}
+                    title={hasRealDate(r)
+                      ? "data di pubblicazione dell'annuncio"
+                      : 'questo marketplace non pubblica la data: è quando lo abbiamo visto noi'}
+                  >
+                    {hasRealDate(r) ? 'pubblicato' : 'visto'} {addedAt(r) ?? ageLabel(r.ageDays)}
                   </div>
               </div>
             </div>
@@ -445,3 +467,14 @@
     </tbody>
   </table>
 </div>
+
+{#if zoom}
+  <img
+    src={zoom.url}
+    alt=""
+    aria-hidden="true"
+    referrerpolicy="no-referrer"
+    {...stylex.attrs(s.zoom)}
+    style="left: {zoom.left}px; top: {zoom.top}px"
+  />
+{/if}

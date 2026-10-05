@@ -19,6 +19,9 @@ export class Listing {
   @Field() shippable!: boolean;
   /** Thumbnail from the source advert; null when it carried no photo. */
   @Field({ nullable: true }) imageUrl?: string;
+  /** Quando l'annuncio è stato pubblicato. Null su Vinted, che non lo dice. */
+  @Field({ nullable: true }) postedAt?: string;
+  /** Quando lo abbiamo visto noi per la prima volta. */
   @Field() firstSeen!: string;
   @Field({ nullable: true }) soldAt?: string;
   @Field() isNew!: boolean;

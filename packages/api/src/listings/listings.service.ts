@@ -79,9 +79,14 @@ export class ListingsService {
       country: r.country ?? undefined,
       shippable: !!r.shippable,
       imageUrl: r.image_url ?? undefined,
+      postedAt: r.posted_at ?? undefined,
       firstSeen: r.first_seen,
       soldAt: r.sold_at ?? undefined,
-      isNew: String(r.first_matched ?? '').slice(0, 10) === today,
+      // "nuovo" vuol dire pubblicato oggi. Dove il marketplace non pubblica una
+      // data si ripiega su quando lo abbiamo visto, che è il meglio disponibile.
+      isNew: r.posted_at
+        ? String(r.posted_at).slice(0, 10) === today
+        : String(r.first_seen ?? '').slice(0, 10) === today,
       isFavourite: fav.has(r.id),
       // Null means the advert states no location, never that it is far away.
       distanceKm: distanceKm(centre?.lat, centre?.lon, r.lat, r.lon) ?? undefined,

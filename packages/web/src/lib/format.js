@@ -76,7 +76,12 @@ export const isNew = (row) => (row.isNew != null ? !!row.isNew : row.ageDays ===
 
 export function parseSqlTime(sqlTimestamp) {
   if (!sqlTimestamp) return null;
-  const t = Date.parse(`${String(sqlTimestamp).replace(' ', 'T')}Z`);
+  const raw = String(sqlTimestamp).trim();
+  // Due formati arrivano qui. SQLite scrive "2026-10-05 08:22:01" senza zona, e
+  // va letto come UTC. Le date di pubblicazione arrivano dai marketplace già in
+  // ISO con il loro fuso: aggiungere una Z a quelle produce NaN.
+  const hasZone = /[zZ]$|[+-]\d{2}:?\d{2}$/.test(raw);
+  const t = Date.parse(hasZone ? raw : `${raw.replace(' ', 'T')}Z`);
   return Number.isNaN(t) ? null : new Date(t);
 }
 
@@ -85,17 +90,29 @@ const DATE_TIME = new Intl.DateTimeFormat('it-IT', {
 });
 const TIME_ONLY = new Intl.DateTimeFormat('it-IT', { hour: '2-digit', minute: '2-digit' });
 
-/** Data e ora in cui l'annuncio è entrato nell'archivio. */
+/**
+ * Quando l'annuncio è stato pubblicato. Subito e Wallapop lo dicono; Vinted no,
+ * né nel catalogo né nella pagina del singolo annuncio, quindi lì si ripiega su
+ * quando lo abbiamo visto noi — ed è dichiarato, perché le due cose non sono la
+ * stessa e confonderle fa sembrare nuovo tutto il primo giorno di una ricerca.
+ */
+export function publishedDate(row) {
+  return parseSqlTime(row?.postedAt) ?? parseSqlTime(row?.firstSeen);
+}
+
+export const hasRealDate = (row) => parseSqlTime(row?.postedAt) != null;
+
+/** Data e ora di pubblicazione, pronta da mostrare. */
 export function addedAt(row) {
-  const d = parseSqlTime(row?.firstSeen);
+  const d = publishedDate(row);
   if (!d) return null;
   const today = new Date().toDateString() === d.toDateString();
   return today ? `oggi alle ${TIME_ONLY.format(d)}` : DATE_TIME.format(d);
 }
 
-/** Ore trascorse da quando è stato aggiunto, per il filtro per data. */
+/** Ore trascorse dalla pubblicazione, per il filtro per data. */
 export function hoursSinceAdded(row) {
-  const d = parseSqlTime(row?.firstSeen);
+  const d = publishedDate(row);
   return d ? (Date.now() - d.getTime()) / 3_600_000 : null;
 }
 

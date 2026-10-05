@@ -32,6 +32,7 @@ export async function search({ query, minPrice = 0, maxPrice = 1000, lat, lon, c
         region: x.location?.region || null, country: x.location?.country_code || null,
         shippable: !!(x.shipping?.item_is_shippable && x.shipping?.user_allows_shipping),
         condition: null,
+        postedAt: x.created_at ? new Date(Number(x.created_at)).toISOString() : null,
         imageUrl: x.images?.[0]?.urls?.small || x.images?.[0]?.urls?.medium || null,
       });
     }

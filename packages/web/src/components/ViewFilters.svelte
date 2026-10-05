@@ -63,7 +63,7 @@
 
   <label {...stylex.attrs(s.toggle)}>
     <input type="checkbox" bind:checked={view.newOnly} />
-    <span>Nuovi oggi</span>
+    <span>Pubblicati oggi</span>
   </label>
 
   {#if kind === 'COMPUTER' || kind === 'MEMORY'}
@@ -97,7 +97,7 @@
   </label>
 
   <label {...stylex.attrs(s.price)}>
-    <span>Aggiunti</span>
+    <span>Pubblicati</span>
     <select
       value={view.addedWithin}
       onchange={(e) => (view.addedWithin = Number(e.currentTarget.value))}

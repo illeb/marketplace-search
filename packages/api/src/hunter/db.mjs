@@ -120,6 +120,9 @@ addColumn('listings', 'lon', 'REAL');
 addColumn('specs', 'year', 'INTEGER');
 // thumbnail from the source listing; all three adapters supply one
 addColumn('listings', 'image_url', 'TEXT');
+// quando l'annuncio è stato pubblicato sul marketplace, che non è quando lo
+// abbiamo visto noi. Subito e Wallapop la danno, Vinted no.
+addColumn('listings', 'posted_at', 'TEXT');
 
 // Every scan, so "did the hourly schedule actually fire" has an answer. Only
 // last_run_at existed before, which is a single timestamp and says nothing about
@@ -162,21 +165,21 @@ export function upsertListing(rec) {
     .get(rec.source, String(rec.sourceId));
   if (existing) {
     db.prepare(`UPDATE listings SET title=?, description=?, price=?, seller_id=?, city=?, country=?,
-      shippable=?, condition=?, image_url=COALESCE(?, image_url),
+      shippable=?, condition=?, image_url=COALESCE(?, image_url), posted_at=COALESCE(?, posted_at),
       last_seen=datetime('now'), misses=0, sold_at=NULL WHERE id=?`)
       .run(rec.title, rec.description ?? '', rec.price, rec.sellerId ?? null, rec.city ?? null,
            rec.country ?? null, rec.shippable ? 1 : 0, rec.condition ?? null,
-           rec.imageUrl ?? null, existing.id);
+           rec.imageUrl ?? null, rec.postedAt ?? null, existing.id);
     if (Number(existing.price) !== Number(rec.price))
       db.prepare('INSERT INTO price_history (listing_id, price) VALUES (?,?)').run(existing.id, rec.price);
     return existing.id;
   }
   const info = db.prepare(`INSERT INTO listings
-    (source, source_id, url, title, description, price, seller_id, city, country, shippable, condition, image_url)
-    VALUES (?,?,?,?,?,?,?,?,?,?,?,?)`)
+    (source, source_id, url, title, description, price, seller_id, city, country, shippable, condition, image_url, posted_at)
+    VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)`)
     .run(rec.source, String(rec.sourceId), rec.url, rec.title, rec.description ?? '', rec.price,
          rec.sellerId ?? null, rec.city ?? null, rec.country ?? null, rec.shippable ? 1 : 0,
-         rec.condition ?? null, rec.imageUrl ?? null);
+         rec.condition ?? null, rec.imageUrl ?? null, rec.postedAt ?? null);
   const id = Number(info.lastInsertRowid);
   db.prepare('INSERT INTO price_history (listing_id, price) VALUES (?,?)').run(id, rec.price);
   return id;

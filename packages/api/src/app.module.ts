@@ -2,7 +2,6 @@ import { Module } from '@nestjs/common';
 import { GraphQLModule } from '@nestjs/graphql';
 import { ApolloDriver, ApolloDriverConfig } from '@nestjs/apollo';
 import { ScheduleModule } from '@nestjs/schedule';
-import { join } from 'node:path';
 
 import { SearchesService } from './searches/searches.service.js';
 import { SearchesResolver } from './searches/searches.resolver.js';
@@ -18,7 +17,10 @@ import { CONFIG } from './hunter/config.mjs';
     ScheduleModule.forRoot(),
     GraphQLModule.forRoot<ApolloDriverConfig>({
       driver: ApolloDriver,
-      autoSchemaFile: join(process.cwd(), 'schema.gql'),
+      // in memory: the tracked contract is schema.graphql at the repository
+      // root, and writing a second copy wherever the process happens to be
+      // started only littered the checkout and the image
+      autoSchemaFile: true,
       sortSchema: true,
       // the UI is served from the same origin, so no CORS and no playground in prod
       playground: false,

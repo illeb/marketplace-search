@@ -9,9 +9,9 @@ packages/api/data/
 # build output
 packages/api/dist/
 packages/web/dist/
-# generated from the decorators at boot; schema.graphql at the root is the
-# hand-written contract and IS tracked
-packages/api/schema.gql
+# emitted by older builds that wrote the decorator schema to disk; the
+# hand-written contract is schema.graphql at the root and IS tracked
+schema.gql
 
 .env
 .env.local
