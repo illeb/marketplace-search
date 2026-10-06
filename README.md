@@ -157,6 +157,29 @@ It is applied three ways, because each marketplace is different:
 
 ## What the parser knows
 
+The product lines it recognises are the app's real reach: `parseMachine` returns
+null for anything it cannot place, and a null spec is dropped. It started with
+four — OptiPlex, ThinkCentre, EliteDesk/ProDesk, Esprimo — which meant a search
+for an Acer Veriton found nothing at all, 38 of 39 adverts discarded including
+"ACER VERITON X2611G i5 RAM 8Gb SSD 500Gb". Acer, Asus, MSI, Shuttle and Terra
+are in now.
+
+Some of those names are ordinary Italian words — *cubi*, *terra*, *shuttle* —
+so those patterns require the make alongside, or a cube shelving unit parses as
+a mini PC. Acer encodes the form factor in a letter the way Fujitsu does (N is
+the one-litre mini, X small, M tower, Z all-in-one), which matters because
+almost no advert writes "micro" next to "Veriton N4640G".
+
+Two drops happen in that phase and only one used to be logged. An advert the
+parser could not read vanished without trace, which is how the complete absence
+of Acer went unnoticed: the log said "0 off-topic" and nothing else. Both are
+counted now.
+
+`BRANDS` in `packages/web/src/lib/search.js` has to stay in step with `FAMILIES`
+in `parse.mjs` — a make the parser cannot read will never appear, and one it can
+read but the list omits cannot be filtered on.
+
+
 These all cost a wrong answer at least once before being fixed:
 
 - **Units in four languages.** French adverts say Go and To, Spanish say gigas.

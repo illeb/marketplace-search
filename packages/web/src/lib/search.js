@@ -116,11 +116,19 @@ export const CHASSIS = [
   { value: 'Unstated', label: 'Non indicato' },
 ];
 
+// Devono restare allineate alle linee che il parser riconosce (FAMILIES in
+// parse.mjs): una marca che il parser non sa leggere non comparirà mai, e una
+// che lui sa leggere ma che qui manca non si può filtrare.
 export const BRANDS = [
   { value: 'Dell', label: 'Dell' },
   { value: 'HP', label: 'HP' },
   { value: 'Lenovo', label: 'Lenovo' },
   { value: 'Fujitsu', label: 'Fujitsu' },
+  { value: 'Acer', label: 'Acer' },
+  { value: 'Asus', label: 'Asus' },
+  { value: 'MSI', label: 'MSI' },
+  { value: 'Shuttle', label: 'Shuttle' },
+  { value: 'Terra', label: 'Terra' },
 ];
 
 export const CPU_TIERS = [

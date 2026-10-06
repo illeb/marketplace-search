@@ -122,6 +122,30 @@ export function parseMemory(title, desc) {
 }
 
 /** Machines: brand, model, chassis, processor, memory, storage. */
+/* ---- linee di prodotto ----------------------------------------------------
+ * Senza una di queste il parser non riconosce una macchina e l'annuncio sparisce
+ * in silenzio, quindi è questa tabella a decidere cosa l'app riesce a trovare.
+ * Partiva con quattro marche, e chi cercava un Acer Veriton non trovava niente:
+ * 38 annunci su 39 buttati, "ACER VERITON X2611G i5 RAM 8Gb SSD" compreso.
+ *
+ * Qualche nome è anche una parola comune in italiano — "cubi", "terra",
+ * "shuttle" — e quelli vogliono la marca accanto, o un mobile a cubi diventa
+ * un mini PC.
+ * ------------------------------------------------------------------------ */
+const FAMILIES = [
+  [/optiplex/, 'Dell'],
+  [/thinkcentre/, 'Lenovo'],
+  [/elitedesk|prodesk/, 'HP'],
+  [/esprimo/, 'Fujitsu'],
+  [/veriton/, 'Acer'],
+  [/expertcenter|\basus\b[^|\n]{0,24}\b(?:pb|pn)\s?-?\s?\d{2,3}/, 'Asus'],
+  [/\bmsi\b[^|\n]{0,24}\bcubi\b|\bcubi\b[^|\n]{0,24}\bmsi\b/, 'MSI'],
+  [/\bxpc\b|\bshuttle\b[^|\n]{0,24}\b(?:slim|ds\d|sh\d|nc\d)/, 'Shuttle'],
+  [/\bterra\s*pc\b|\bwortmann\b/, 'Terra'],
+];
+
+const familyOf = (T) => FAMILIES.find(([re]) => re.test(T))?.[1] ?? null;
+
 export function parseMachine(title, desc) {
   const t = (title || '').replace(/\s+/g, ' ').trim();
   if (ACCESSORY.test(t) || ACCESSORY_STEM.test(t) || ACCESSORY_LEAD.test(t)
@@ -139,8 +163,7 @@ export function parseMachine(title, desc) {
   const conf = {};
   const o = { kind: 'machine' };
 
-  o.family = /optiplex/.test(T) ? 'Dell' : /thinkcentre/.test(T) ? 'Lenovo'
-           : /elitedesk|prodesk/.test(T) ? 'HP' : /esprimo/.test(T) ? 'Fujitsu' : null;
+  o.family = familyOf(T);
   if (!o.family) return null;
 
   if (o.family === 'Dell') o.model = (T.match(/optiplex\D{0,8}(30[1-9]0|50[1-9]0|70[1-9]0|90[1-3]0|320|330|360|380|390|580|740|745|755|760|780|790|960|980|990)/) || [])[1];
@@ -157,6 +180,26 @@ export function parseMachine(title, desc) {
   let esprimoLetter;
   if (o.family === 'Fujitsu') { const m = T.match(/esprimo\s*([dqgpek])\s*[- ]?\s*(\d{3,4})/);
     if (m) { o.model = 'Esprimo ' + m[1].toUpperCase() + m[2]; esprimoLetter = m[1]; o.esprimoGen = GEN_BY_ESPRIMO[m[2]]; } }
+
+  // Le linee aggiunte dopo. Acer codifica il formato nella lettera come fa
+  // Fujitsu — N è il mini da un litro, X il piccolo, M il tower, Z il tutto in
+  // uno — e le altre tre sono mini per costruzione: un Cubi o uno XPC slim in
+  // formato tower non esistono. Serve perché quasi nessun annuncio scrive
+  // "micro" accanto a "Veriton N4640G": il formato è nel nome, non nel testo.
+  let impliedChassis;
+  if (o.family === 'Acer') {
+    const m = T.match(/veriton\s*([nxmlz])\s?-?\s?(\d{3,4})/);
+    if (m) { o.model = 'Veriton ' + m[1].toUpperCase() + m[2]; }
+    const letter = m?.[1] ?? (T.match(/veriton\s*([nxmlz])\b/) || [])[1];
+    impliedChassis = { n: 'Micro', x: 'SFF', l: 'SFF', m: 'Tower', z: 'AIO' }[letter];
+  }
+  if (o.family === 'Asus') {
+    const m = T.match(/\b(pb|pn)\s?-?\s?(\d{2,3})/);
+    if (m) o.model = m[1].toUpperCase() + m[2];
+    if (m || /mini ?pc/.test(T)) impliedChassis = 'Micro';
+  }
+  if (o.family === 'MSI') { o.model = (T.match(/cubi\s*([a-z]?\d{1,2})/) || [])[1]; impliedChassis = 'Micro'; }
+  if (o.family === 'Shuttle') { o.model = (T.match(/\b((?:ds|sh|nc)\d{2,3}[a-z]?)\b/) || [])[1]; impliedChassis = 'Micro'; }
 
   // Chassis. Roughly a third of adverts never say, and dropping those silently
   // cost a quarter of the market until it was caught — so 'Unstated' is a state.
@@ -184,7 +227,7 @@ export function parseMachine(title, desc) {
     : MICRO.test(C) ? 'Micro'
     : TOWER.test(C) ? 'Tower'
     : esprimoLetter ? ({ d: 'SFF', e: 'SFF', q: 'Micro', g: 'Micro', p: 'Tower', k: 'AIO' }[esprimoLetter] || 'Unstated')
-    : /[sq]$/.test(o.model || '') ? (o.model.endsWith('s') ? 'SFF' : 'Micro') : 'Unstated';
+    : impliedChassis ?? (/[sq]$/.test(o.model || '') ? (o.model.endsWith('s') ? 'SFF' : 'Micro') : 'Unstated');
   conf.chassis = SFF.test(C) || MICRO.test(C) || TOWER.test(C) ? 'stated'
     : o.chassis === 'Unstated' ? 'unknown' : 'inferred-from-model';
 

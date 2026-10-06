@@ -142,14 +142,20 @@ async function runSearchInner(search) {
   // Marketplaces answer with whatever they consider related. A search for a dough
   // mixer came back with neck massagers and floor tiles; Vinted mixes promoted
   // items in as well. Anything not mentioning the query is discarded here.
-  let offTopic = 0;
+  let offTopic = 0, unparsed = 0;
   const candidates = [];
   for (const r of pool.values()) {
     if (!isRelevant(tokens, r.title, r.description)) { offTopic++; continue; }
     const spec = parseListing(r.title, r.description, search.kind);
     if (spec) candidates.push({ r, spec });
+    else unparsed++;
   }
+  // Due scarti, e il secondo era muto: un annuncio che il parser non riconosce
+  // spariva senza lasciare traccia nel log. È così che l'assenza completa degli
+  // Acer è passata inosservata — il parser conosceva quattro marche, le altre
+  // finivano tutte qui dentro e il log diceva soltanto "0 fuori tema".
   if (offTopic) log(`  dropped ${offTopic} off-topic`);
+  if (unparsed) log(`  dropped ${unparsed} unrecognised`);
 
   setProgress(Number(search.id), {
     phase: 'details', step: steps - 1, steps, label: 'reading adverts', found: pool.size,

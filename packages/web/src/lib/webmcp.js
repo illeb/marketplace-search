@@ -55,7 +55,7 @@ const FILTER_PROPS = {
   countries: { type: 'array', items: { type: 'string' }, description: 'ISO2 codes; empty means all of Europe' },
   chassis: { type: 'array', items: { type: 'string', enum: ['Micro', 'SFF', 'Tower', 'Unstated'] } },
   vendor: { type: ['string', 'null'], enum: ['INTEL', 'AMD', null] },
-  brands: { type: 'array', items: { type: 'string', enum: ['Dell', 'HP', 'Lenovo', 'Fujitsu'] } },
+  brands: { type: 'array', items: { type: 'string', enum: ['Dell', 'HP', 'Lenovo', 'Fujitsu', 'Acer', 'Asus', 'MSI', 'Shuttle', 'Terra'] } },
   minYear: { type: 'integer', description: 'launch-year floor; the one age limit that holds for Intel and AMD alike' },
   minRam: { type: 'integer', description: 'GB' },
   minStorage: { type: 'integer', description: 'GB' },
