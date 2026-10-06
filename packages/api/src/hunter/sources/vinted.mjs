@@ -26,22 +26,44 @@ let jar = '', sinceRotate = 0;
 let nextAt = 0;         // quando è lecita la prossima richiesta
 let blockedUntil = 0;   // fin quando Vinted ci ha messo in castigo
 let strikes = 0;        // rifiuti di fila, per allungare l'attesa
+let gap = 0;            // intervallo in vigore adesso: si allarga a ogni rifiuto
+let streak = 0;         // successi di fila, per tornare piano piano al ritmo pieno
 
 /** Millisecondi che mancano alla fine del castigo, 0 se non siamo in castigo. */
 export const cooling = () => Math.max(0, blockedUntil - Date.now());
 
+/** L'intervallo in vigore, per poterlo guardare dai log e dalle prove. */
+export const currentGap = () => gap || CONFIG.vinted.minGapMs;
+
 /** Azzera lo stato fra una passata e l'altra, così un castigo non è eterno. */
 export function resetLimiter() {
-  blockedUntil = 0; strikes = 0;
+  blockedUntil = 0; strikes = 0; gap = CONFIG.vinted.minGapMs; streak = 0;
 }
 
 function penalise(res) {
   strikes++;
-  // Retry-After quando c'è: è Vinted stessa a dire quanto aspettare.
+  // Retry-After quando c'è: è Vinted stessa a dire quanto aspettare. Non lo
+  // manda mai, nelle prove, quindi quasi sempre decide il nostro conto.
   const ra = Number(res?.headers?.get?.('retry-after'));
   const asked = Number.isFinite(ra) && ra > 0 ? ra * 1000 : 0;
   const mine = Math.min(CONFIG.vinted.coolMs * 2 ** (strikes - 1), CONFIG.vinted.maxCoolMs);
   blockedUntil = Date.now() + Math.max(asked, mine);
+
+  // Fermarsi e basta fa incassare il rifiuto ma non lo evita: ripartendo allo
+  // stesso ritmo si torna a sbatterci. Quindi il rifiuto insegna qualcosa — il
+  // ritmo si allarga e resta largo, e si restringe solo dopo una lunga fila di
+  // risposte buone, così una passata si assesta da sola sul passo che Vinted
+  // tollera invece di aspettare che qualcuno scelga il numero giusto a mano.
+  gap = Math.round(Math.min((gap || CONFIG.vinted.minGapMs) * 1.5, CONFIG.vinted.maxGapMs));
+  streak = 0;
+}
+
+function reward() {
+  strikes = 0;
+  if (gap <= CONFIG.vinted.minGapMs) return;
+  if (++streak < CONFIG.vinted.easeAfter) return;
+  gap = Math.round(Math.max(CONFIG.vinted.minGapMs, gap / 1.5));
+  streak = 0;
 }
 
 const LIMITED = /rate.?limit|too many requests|slow down/i;
@@ -59,7 +81,7 @@ async function paced(url, init) {
   // solo dopo spostandolo si addormenterebbero entrambi fino allo stesso
   // istante e partirebbero appaiati, che è l'opposto di quel che serve.
   const slot = Math.max(Date.now(), nextAt);
-  nextAt = slot + CONFIG.vinted.minGapMs;
+  nextAt = slot + (gap || CONFIG.vinted.minGapMs);
   const wait = slot - Date.now();
   if (wait > 0) await sleep(wait);
 
@@ -70,7 +92,7 @@ async function paced(url, init) {
     const peek = await res.clone().text().catch(() => '');
     if (LIMITED.test(peek.slice(0, 2000))) { penalise(res); return res; }
   }
-  if (res.ok) strikes = 0;
+  if (res.ok) reward();
   return res;
 }
 

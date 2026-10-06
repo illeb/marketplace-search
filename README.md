@@ -342,10 +342,17 @@ Now every Vinted request — catalogue, item page, seller, session rebuild — g
 through one gate that holds `VINTED_MIN_GAP_MS` between any two, so the rate is
 one number instead of four and the untimed paths are gone. A refusal (429, 403,
 or a body that says so) starts a pause that doubles on each repeat up to
-`VINTED_MAX_COOL_MS`, honouring `Retry-After` when Vinted sends one. A short
-pause is simply waited out; past `VINTED_MAX_WAIT_MS` the sweep stops asking,
-skips the Vinted phases for that pass and says so in the log, rather than
-spending the rest of the budget on requests that come back empty.
+`VINTED_MAX_COOL_MS`. Vinted sends no `Retry-After` — measured, not assumed —
+so that pause is ours to pick; it is honoured anyway if one ever arrives. A
+short pause is simply waited out; past `VINTED_MAX_WAIT_MS` the sweep stops
+asking, skips the Vinted phases for that pass and says so in the log, rather
+than spending the rest of the budget on requests that come back empty.
+
+Pausing alone only absorbs a refusal, it does not avoid the next one: resuming at
+the same rate walks into it again. So a refusal also widens the gap by half, up
+to `VINTED_MAX_GAP_MS`, and it stays wide until `VINTED_EASE_AFTER` consecutive
+good answers earn it back. A sweep therefore settles on the pace Vinted will
+tolerate that day instead of waiting for someone to guess the right number.
 
 The page budget is now per sweep, and the session is rebuilt every 40 requests
 rather than every 10.
@@ -401,7 +408,9 @@ had one chosen.
 | `MISSES_BEFORE_SOLD` | 2 | consecutive absences before a listing counts as sold |
 | `VINTED_HOST` | vinted.it | marketplace domain |
 | `VINTED_ROTATE_EVERY` | 40 | requests before the anonymous session is rebuilt |
-| `VINTED_MIN_GAP_MS` | 1100 | minimum gap between any two Vinted requests |
+| `VINTED_MIN_GAP_MS` | 1100 | smallest gap between any two Vinted requests |
+| `VINTED_MAX_GAP_MS` | 6000 | largest gap the limiter will widen to after refusals |
+| `VINTED_EASE_AFTER` | 40 | good answers in a row before the gap narrows again |
 | `VINTED_COOL_MS` | 60000 | pause after Vinted refuses; doubles on each repeat |
 | `VINTED_MAX_COOL_MS` | 900000 | ceiling for that pause |
 | `VINTED_MAX_WAIT_MS` | 90000 | longest pause waited out inside a sweep; past it Vinted is skipped for the pass |

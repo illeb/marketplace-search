@@ -23,6 +23,10 @@ export const CONFIG = {
     // Prima ogni fase aveva la sua pausa e due non ne avevano nessuna, quindi
     // il ritmo vero non era scritto da nessuna parte.
     minGapMs: Number(process.env.VINTED_MIN_GAP_MS || 1100),
+    // Il tetto a cui può arrivare allargandosi dopo i rifiuti, e dopo quante
+    // risposte buone di fila si torna a stringere.
+    maxGapMs: Number(process.env.VINTED_MAX_GAP_MS || 6000),
+    easeAfter: Number(process.env.VINTED_EASE_AFTER || 40),
     // Quanto si sta fermi al primo rifiuto; raddoppia a ogni recidiva fino al
     // tetto. maxWait è quanto si è disposti ad aspettare dentro una passata:
     // oltre, si lascia perdere Vinted per questo giro invece di restare appesi
