@@ -30,7 +30,7 @@ export const SEARCHES = gql`
 
 const LISTING_FIELDS = `
       id source url title price city country shippable imageUrl
-      postedAt postedApprox firstSeen soldAt isNew isFavourite distanceKm
+      postedAt postedApprox shippingCost shippingFrom firstSeen soldAt isNew isFavourite distanceKm
       vendor family model chassis cpu cpuNum generation year
       ramGb ssdGb hddGb storageGb memTotal memSticks memPer memSpeed tiered
       reviews positivePct cautions ageDays priceMin priceMax`;

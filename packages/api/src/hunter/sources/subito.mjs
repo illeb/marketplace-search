@@ -30,6 +30,11 @@ export async function search({ query, maxPages = 3 }) {
         city: a.geo?.town?.value || a.geo?.city?.value || null,
         region: a.geo?.region?.value || null, country: 'IT',
         shippable: feat(a, '/item_shippable') === 'Sì',
+        // Due modi di spedire, mai insieme sullo stesso annuncio (verificato su
+        // 100: 5 con il primo, 50 col secondo, 45 senza nessuno dei due):
+        // "gestita da te" porta il prezzo del venditore, TuttoSubito il suo.
+        shippingCost: money(feat(a, '/item_shipping_cost')
+          ?? feat(a, '/item_shipping_cost_tuttosubito')) || null,
         condition: feat(a, '/item_condition'),
       });
     }

@@ -44,6 +44,8 @@ type Listing {
   ramGb: Int
   reviews: Int
   shippable: Boolean!
+  shippingCost: Float
+  shippingFrom: Boolean!
   soldAt: String
   source: String!
   ssdGb: Int

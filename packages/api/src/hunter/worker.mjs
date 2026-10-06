@@ -188,6 +188,7 @@ async function runSearchInner(search) {
       // d.gone: la pagina risponde 200 ma è quella del "non trovato"
       if (d.gone || !d.inStock) { c.gone = true; continue; }
       if (d.postedAt) { c.r.postedAt = d.postedAt; dated++; }
+      if (d.shippingCost != null) c.r.shippingCost = d.shippingCost;
       c.r.description = d.description;
       const better = parseListing(c.r.title, c.r.description, search.kind);
       if (better) c.spec = better;
@@ -257,6 +258,9 @@ async function runSearchInner(search) {
           retired++;
           continue;
         }
+        // La pagina è già aperta: la spedizione viene via gratis insieme alla data.
+        if (d.shippingCost != null)
+          db.prepare('UPDATE listings SET shipping_cost=? WHERE id=?').run(d.shippingCost, row.id);
         if (!d.postedAt) continue;
         db.prepare('UPDATE listings SET posted_at=? WHERE id=?').run(d.postedAt, row.id);
         dated++;

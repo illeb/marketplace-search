@@ -3,6 +3,11 @@
 // enough that the session has to be rotated every handful of requests.
 import { CONFIG } from '../config.mjs';
 const sleep = ms => new Promise(r => setTimeout(r, ms));
+/** "da 9,39 €" -> 9.39, e null se non c'è un numero. */
+const money = (t) => {
+  const m = String(t || '').match(/(\d+(?:[.,]\d{1,2})?)/);
+  return m ? Number(m[1].replace(',', '.')) : null;
+};
 const WEB = () => `https://www.${CONFIG.vinted.host}`;
 const API = () => `https://api.edge.${CONFIG.vinted.host}/svc-catalogue/items`;
 
@@ -245,13 +250,20 @@ async function readItemPage(url) {
     const up = html.match(/itemProp="upload_date"[\s\S]{0,200}?>([^<>]{1,40})</);
     const postedAt = up ? uploadedAgoToIso(up[1]) : null;
 
+    // La spedizione è sul banner, e il data-testid è l'unica àncora sicura:
+    // cercare "da 9,39 €" nel testo pescherebbe anche le stringhe di traduzione
+    // del bundle, che parlano di tutt'altro. È un "a partire da": il prezzo
+    // vero dipende dal corriere scelto, e chi lo mostra lo dichiara.
+    const sh = html.match(/data-testid="item-shipping-banner-price"[^>]*>([^<]{1,40})</);
+    const shippingCost = sh ? money(sh[1]) : null;
+
     const m = html.match(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/);
     if (!m) return NOT_FOUND_TITLE.test(html) ? { gone: true } : null;
     const j = JSON.parse(m[1]);
     return { description: j.description || '',
              inStock: /InStock/i.test(j.offers?.availability || ''),
              price: j.offers?.price != null ? Number(j.offers.price) : null,
-             postedAt };
+             postedAt, shippingCost };
   } catch { return null; }
 }
 

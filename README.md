@@ -218,6 +218,34 @@ entry with several words is a phrase and has to be found in sequence:
 It is a filter, not a gate: excluded adverts are still stored, so shortening the
 list recovers them immediately, with no sweep. Same rule as every other filter.
 
+## Shipping
+
+Where the advert states a shipping price, the table shows it under the item price
+along with the total, because on a cheap machine it is not a rounding error:
+Vinted quotes 9.39 € on an 80 € desktop, a quarter again on top.
+
+Each source gives it up differently, and the cost of asking decided how far this
+goes:
+
+- **Subito** puts it in the catalogue, free: `/item_shipping_cost` when the
+  seller handles it, `/item_shipping_cost_tuttosubito` when Subito does. The two
+  never appear together — checked across 100 adverts: 5 with the first, 50 with
+  the second, 45 with neither — so whichever is there is the price. It is exact.
+- **Vinted** publishes nothing in its API, but the item page carries a shipping
+  banner, read by its `data-testid` rather than by looking for a euro figure in
+  the text, which would also match translation strings in the JS bundle. It is a
+  "from": the real cost depends on the carrier the buyer picks, so it is shown
+  as such. It costs nothing extra, being read from pages already fetched for the
+  specs and the publication date.
+- **Wallapop** gives only an opaque `cost_configuration_id` in the catalogue. The
+  price is on the item page, which the sweep never fetches, and fetching one per
+  advert would mean hundreds of new requests — so it is left out rather than
+  bought at that price.
+
+The `max price` filter still applies to the item price alone. Changing it to the
+total would quietly re-decide every saved search, so it is a deliberate choice,
+not a side effect of this.
+
 ## Relevance
 
 Marketplaces answer a query with whatever they think is related. Asking Subito for a dough

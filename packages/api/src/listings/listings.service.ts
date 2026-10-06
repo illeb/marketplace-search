@@ -81,6 +81,9 @@ export class ListingsService {
       imageUrl: r.image_url ?? undefined,
       postedAt: r.posted_at ?? undefined,
       postedApprox: r.source === 'vinted' && r.posted_at != null,
+      shippingCost: r.shipping_cost ?? undefined,
+      // Subito dichiara la cifra esatta; su Vinted è il minimo fra i corrieri.
+      shippingFrom: r.source !== 'subito',
       firstSeen: r.first_seen,
       soldAt: r.sold_at ?? undefined,
       // "nuovo" vuol dire pubblicato oggi. Resta il ripiego su quando lo abbiamo

@@ -110,6 +110,8 @@
     cPrice: { whiteSpace: 'nowrap' },
     price: { fontSize: 17, fontWeight: 700 },
     was: { display: 'block', fontSize: 11, color: t.muted, textDecoration: 'line-through' },
+    ship: { display: 'block', fontSize: 11, color: t.muted },
+    total: { display: 'block', fontSize: 12, color: t.faint },
 
     cMachine: {
       minWidth: { default: 210, '@media (max-width: 840px)': 0 },
@@ -247,6 +249,7 @@
   import {
     money, gb, distance, percent, cpuLabel, storageDetail,
     isMemory, isMachine, isNew, addedAt, hasRealDate, seenAt, sellerTone, stated, threads, modelLabel,
+    shipping, totalPrice, moneyCents,
   } from '../lib/format.js';
 
   let { rows, search, onfavourite } = $props();
@@ -332,6 +335,21 @@
             <span {...stylex.attrs(ui.mono, s.price)}>{money(r.price)}</span>
             {#if stated(r.priceMax) && r.priceMax > r.price}
               <span {...stylex.attrs(s.was)}>prima {money(r.priceMax)}</span>
+            {/if}
+            {#if shipping(r) != null}
+              <span
+                {...stylex.attrs(s.ship)}
+                title={r.shippingFrom
+                  ? 'Costo minimo di spedizione: quello vero dipende dal corriere scelto.'
+                  : "Costo di spedizione dichiarato dall'annuncio."}
+              >
+                {shipping(r) === 0 ? 'spedizione gratis' : `+ ${r.shippingFrom ? 'da ' : ''}${moneyCents(shipping(r))} sped.`}
+              </span>
+              {#if shipping(r) > 0}
+                <span {...stylex.attrs(ui.mono, s.total)}>
+                  {r.shippingFrom ? 'da ' : ''}{moneyCents(totalPrice(r))} in tutto
+                </span>
+              {/if}
             {/if}
           </td>
 

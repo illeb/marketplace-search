@@ -12,7 +12,27 @@ export const money = (n) =>
     ? '—'
     : `${Number(n).toLocaleString('it-IT', { maximumFractionDigits: 0 })} €`;
 
+/**
+ * Come money(), ma con i centesimi quando ci sono. I prezzi degli annunci sono
+ * quasi sempre interi e arrotondarli toglie rumore; le spedizioni no — 2,99 €
+ * mostrato come "3 €" è una cifra che nessuno ha scritto, e il totale che ne
+ * esce è sbagliato di poco ma sbagliato.
+ */
+export const moneyCents = (n) =>
+  n == null || Number.isNaN(Number(n))
+    ? '—'
+    : `${Number(n).toLocaleString('it-IT', { minimumFractionDigits: 0, maximumFractionDigits: 2 })} €`;
+
 export const gb = (n) => (stated(n) ? `${Number(n)} GB` : null);
+
+/**
+ * Quanto costa davvero, spedizione inclusa, quando l'annuncio la dichiara.
+ * Zero è un costo valido — "spedizione gratuita" — quindi si guarda il null,
+ * non la verità del numero.
+ */
+export const shipping = (row) => (row?.shippingCost == null ? null : Number(row.shippingCost));
+export const totalPrice = (row) =>
+  row?.shippingCost == null ? null : Number(row.price) + Number(row.shippingCost);
 
 export const distance = (km) => (km == null ? null : `${Math.round(km)} km`);
 

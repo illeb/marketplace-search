@@ -27,6 +27,14 @@ export class Listing {
    * l'annuncio. Chi la mostra lo dice, invece di fingere l'ora esatta.
    */
   @Field() postedApprox!: boolean;
+  /**
+   * Costo della spedizione quando l'annuncio lo dichiara. Subito lo dà esatto
+   * nel catalogo; Vinted lo mostra come "a partire da", perché dipende dal
+   * corriere che sceglie chi compra.
+   */
+  @Field(() => Float, { nullable: true }) shippingCost?: number;
+  /** Vero quando quel costo è un minimo e non la cifra definitiva. */
+  @Field() shippingFrom!: boolean;
   /** Quando lo abbiamo visto noi per la prima volta. */
   @Field() firstSeen!: string;
   @Field({ nullable: true }) soldAt?: string;
