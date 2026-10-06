@@ -237,10 +237,15 @@ goes:
   "from": the real cost depends on the carrier the buyer picks, so it is shown
   as such. It costs nothing extra, being read from pages already fetched for the
   specs and the publication date.
-- **Wallapop** gives only an opaque `cost_configuration_id` in the catalogue. The
-  price is on the item page, which the sweep never fetches, and fetching one per
-  advert would mean hundreds of new requests — so it is left out rather than
-  bought at that price.
+- **Wallapop** gives only an opaque `cost_configuration_id`, in the catalogue and
+  in its item API alike. That id is not a price bracket: one value covers 56
+  adverts from earrings to sofas, and their pages quote 2.59 € and 10.45 €, so it
+  cannot be resolved once and reused. The price exists only in the rendered page,
+  anchored to the "Spedito a domicilio…" line, and it is a "from" like Vinted's.
+  That means one page fetch per advert — the reason it was left out at first —
+  so it is budgeted: `WALLAPOP_MAX_SHIPPING` per sweep, matched rows only, and
+  only those with no cost yet. A cost once read is kept, so the backlog drains
+  and the phase empties itself.
 
 The `max price` filter still applies to the item price alone. Changing it to the
 total would quietly re-decide every saved search, so it is a deliberate choice,
@@ -451,6 +456,7 @@ had one chosen.
 | `VINTED_MAX_COOL_MS` | 900000 | ceiling for that pause |
 | `VINTED_MAX_WAIT_MS` | 90000 | longest pause waited out inside a sweep; past it Vinted is skipped for the pass |
 | `VINTED_MAX_DETAILS` | 120 | **per-sweep** budget for Vinted page fetches, which carry the specs and the only publication date Vinted publishes |
+| `WALLAPOP_MAX_SHIPPING` | 60 | per-sweep budget for Wallapop page fetches, the only place its shipping price exists |
 
 ## API
 

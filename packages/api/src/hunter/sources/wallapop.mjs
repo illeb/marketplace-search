@@ -54,6 +54,30 @@ export async function seller(sellerId) {
   } catch { return null; }
 }
 
+/* ---- costo di spedizione --------------------------------------------------
+ * Il catalogo e l'API di dettaglio danno solo un cost_configuration_id opaco, e
+ * quell'id non è un listino: lo stesso valore compare su 56 annunci che vanno
+ * dagli orecchini ai divani, e le pagine mostrano 2,59 € su uno e 10,45 € su un
+ * altro. Dipende dall'oggetto, quindi non si può risolvere una volta per tutte:
+ * va letto dalla pagina, una per annuncio.
+ *
+ * Si legge ancorandosi alla riga "Spedito a domicilio…", perché cercare una
+ * cifra in euro a caso nella pagina prenderebbe anche il prezzo dell'oggetto.
+ * È un "a partire da", come su Vinted: dipende dal punto di consegna scelto.
+ * ------------------------------------------------------------------------ */
+const SHIPPING = /Spedito a domicilio[^<]*<\/span>[\s\S]{0,300}?>\s*(?:da\s*)?(\d+[.,]\d{2})\s*€/i;
+
+/** Il costo di spedizione dell'annuncio, o null se la pagina non lo dice. */
+export async function shippingFor(url) {
+  try {
+    const r = await fetch(url, { headers: { accept: 'text/html', 'user-agent': CONFIG.userAgent,
+      'accept-language': 'it-IT,it;q=0.9' } });
+    if (!r.ok) return null;
+    const m = (await r.text()).match(SHIPPING);
+    return m ? Number(m[1].replace(',', '.')) : null;
+  } catch { return null; }
+}
+
 export async function isSold(url) {
   try {
     const r = await fetch(url, { headers: { ...H(), accept: 'text/html' } });

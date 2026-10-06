@@ -48,5 +48,12 @@ export const CONFIG = {
     maxDetailFetches: Number(process.env.VINTED_MAX_DETAILS || 120),
     maxDateFetches: Number(process.env.VINTED_MAX_DATES || 80),
   },
+  wallapop: {
+    // Il costo di spedizione sta solo nella pagina dell'annuncio, che pesa
+    // ~180 KB: una lettura per annuncio, sulle sole righe che corrispondono e
+    // che non hanno ancora un costo. Una volta saputo resta salvato, quindi
+    // questo budget serve a smaltire l'arretrato e poi si svuota da sé.
+    maxShippingFetches: Number(process.env.WALLAPOP_MAX_SHIPPING || 60),
+  },
   politeness: { subitoMs: 250, wallapopMs: 300, vintedMs: 250, detailMs: 900, sellerMs: 400 },
 };

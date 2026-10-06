@@ -26,13 +26,10 @@ export const moneyCents = (n) =>
 export const gb = (n) => (stated(n) ? `${Number(n)} GB` : null);
 
 /**
- * Quanto costa davvero, spedizione inclusa, quando l'annuncio la dichiara.
- * Zero è un costo valido — "spedizione gratuita" — quindi si guarda il null,
- * non la verità del numero.
+ * Il costo di spedizione, quando l'annuncio lo dichiara. Zero è un costo valido
+ * — "spedizione gratuita" — quindi si guarda il null, non la verità del numero.
  */
 export const shipping = (row) => (row?.shippingCost == null ? null : Number(row.shippingCost));
-export const totalPrice = (row) =>
-  row?.shippingCost == null ? null : Number(row.price) + Number(row.shippingCost);
 
 export const distance = (km) => (km == null ? null : `${Math.round(km)} km`);
 

@@ -65,6 +65,7 @@ let budget = null;
 const newBudget = () => ({
   details: CONFIG.vinted.maxDetailFetches,
   dates: CONFIG.vinted.maxDateFetches,
+  wallapopShipping: CONFIG.wallapop.maxShippingFetches,
 });
 
 export async function runSearch(search, { trigger = 'manual' } = {}) {
@@ -266,6 +267,36 @@ async function runSearchInner(search) {
         dated++;
       }
       log(`  ${missing.length} date mancanti cercate, ${dated} trovate, ${retired} sparite`);
+    }
+  }
+
+  // ---- 4c. spedizione mancante su Wallapop --------------------------------
+  // Stessa idea della fase delle date: si aprono solo le righe che si vedono
+  // davvero in tabella, e solo quelle che un costo non ce l'hanno ancora. Una
+  // volta letto resta salvato, quindi questa fase si svuota col passare delle
+  // passate invece di ripresentarsi uguale ogni volta.
+  if (wanted.includes('wallapop')) {
+    const missing = db.prepare(`SELECT l.id, l.url FROM listings l
+      JOIN matches m ON m.listing_id = l.id
+      WHERE m.search_id = ? AND l.source = 'wallapop' AND l.shippable = 1
+        AND l.shipping_cost IS NULL AND l.sold_at IS NULL
+      ORDER BY l.price ASC LIMIT ?`)
+      .all(search.id, Math.max(0, budget?.wallapopShipping ?? CONFIG.wallapop.maxShippingFetches));
+
+    if (missing.length) {
+      setProgress(Number(search.id), {
+        phase: 'shipping', step: steps, steps, label: 'costi di spedizione', found: pool.size,
+      });
+      let got = 0;
+      for (const row of missing) {
+        const cost = await wallapop.shippingFor(row.url);
+        if (budget) budget.wallapopShipping--;
+        await sleep(CONFIG.politeness.detailMs);
+        if (cost == null) continue;
+        db.prepare('UPDATE listings SET shipping_cost=? WHERE id=?').run(cost, row.id);
+        got++;
+      }
+      log(`  ${missing.length} spedizioni wallapop cercate, ${got} trovate`);
     }
   }
 

@@ -111,7 +111,6 @@
     price: { fontSize: 17, fontWeight: 700 },
     was: { display: 'block', fontSize: 11, color: t.muted, textDecoration: 'line-through' },
     ship: { display: 'block', fontSize: 11, color: t.muted },
-    total: { display: 'block', fontSize: 12, color: t.faint },
 
     cMachine: {
       minWidth: { default: 210, '@media (max-width: 840px)': 0 },
@@ -249,7 +248,7 @@
   import {
     money, gb, distance, percent, cpuLabel, storageDetail,
     isMemory, isMachine, isNew, addedAt, hasRealDate, seenAt, sellerTone, stated, threads, modelLabel,
-    shipping, totalPrice, moneyCents,
+    shipping, moneyCents,
   } from '../lib/format.js';
 
   let { rows, search, onfavourite } = $props();
@@ -345,11 +344,6 @@
               >
                 {shipping(r) === 0 ? 'spedizione gratis' : `+ ${r.shippingFrom ? 'da ' : ''}${moneyCents(shipping(r))} sped.`}
               </span>
-              {#if shipping(r) > 0}
-                <span {...stylex.attrs(ui.mono, s.total)}>
-                  {r.shippingFrom ? 'da ' : ''}{moneyCents(totalPrice(r))} in tutto
-                </span>
-              {/if}
             {/if}
           </td>
 
