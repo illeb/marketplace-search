@@ -327,6 +327,29 @@ RECHECK_ALL=1 node packages/api/scripts/recheck-sold.mjs     # the whole archive
 Run it **after** updating the image, never before: on an older build Vinted's soft 404 is
 not recognised, so most of its adverts come back as "cannot tell" and stay retired.
 
+## Not getting rate limited
+
+Vinted refuses when pushed, and the refusal is sticky: keep asking and the block
+lasts longer. The pressure used to come from the shape of the code rather than
+from any decision. Each phase set its own pause — 250 ms between catalogue pages,
+900 ms between item pages, 400 ms between sellers — while the session rebuild and
+the seller lookup went through plain `fetch` with no pause at all. Worse, the
+page budget was *per search*: three searches read Vinted, so the stated 120
+became 360, and the sessionrebuild every 10 requests meant re-downloading a 1.8 MB
+home page a few dozen times a sweep.
+
+Now every Vinted request — catalogue, item page, seller, session rebuild — goes
+through one gate that holds `VINTED_MIN_GAP_MS` between any two, so the rate is
+one number instead of four and the untimed paths are gone. A refusal (429, 403,
+or a body that says so) starts a pause that doubles on each repeat up to
+`VINTED_MAX_COOL_MS`, honouring `Retry-After` when Vinted sends one. A short
+pause is simply waited out; past `VINTED_MAX_WAIT_MS` the sweep stops asking,
+skips the Vinted phases for that pass and says so in the log, rather than
+spending the rest of the budget on requests that come back empty.
+
+The page budget is now per sweep, and the session is rebuilt every 40 requests
+rather than every 10.
+
 ## Source quirks
 
 | | Auth | Descriptions | Pagination | Reputation |
@@ -377,8 +400,12 @@ had one chosen.
 | `SWEEP_MINUTES` | 360 | starting rate for the scheduled sweep; once a rate is chosen under Impostazioni it is stored in the database and wins |
 | `MISSES_BEFORE_SOLD` | 2 | consecutive absences before a listing counts as sold |
 | `VINTED_HOST` | vinted.it | marketplace domain |
-| `VINTED_ROTATE_EVERY` | 10 | requests before the session is rebuilt |
-| `VINTED_MAX_DETAILS` | 120 | per-search budget for Vinted page fetches, which carry the specs and the only publication date Vinted publishes |
+| `VINTED_ROTATE_EVERY` | 40 | requests before the anonymous session is rebuilt |
+| `VINTED_MIN_GAP_MS` | 1100 | minimum gap between any two Vinted requests |
+| `VINTED_COOL_MS` | 60000 | pause after Vinted refuses; doubles on each repeat |
+| `VINTED_MAX_COOL_MS` | 900000 | ceiling for that pause |
+| `VINTED_MAX_WAIT_MS` | 90000 | longest pause waited out inside a sweep; past it Vinted is skipped for the pass |
+| `VINTED_MAX_DETAILS` | 120 | **per-sweep** budget for Vinted page fetches, which carry the specs and the only publication date Vinted publishes |
 
 ## API
 

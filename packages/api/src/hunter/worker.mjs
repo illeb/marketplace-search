@@ -17,7 +17,8 @@ async function reputation(source, sellerId) {
   if (!sellerIsFresh(source, sellerId)) {
     const rep = await SOURCES[source].seller(sellerId);
     if (rep) saveSeller(source, sellerId, rep);
-    await sleep(CONFIG.politeness.sellerMs);
+    // Vinted si frena da sé; per le altre fonti la pausa serve ancora qui.
+    if (source !== 'vinted') await sleep(CONFIG.politeness.sellerMs);
   }
   return db.prepare('SELECT reviews, positive_pct AS positivePct, negative, reports FROM sellers WHERE source=? AND seller_id=?')
     .get(source, String(sellerId)) || null;
@@ -54,8 +55,22 @@ function endRun(runId, { found = 0, offTopic = 0, matched = 0, error = null } = 
     .run(found, offTopic, matched, error, runId);
 }
 
+/* ---- budget di richieste a Vinted ----------------------------------------
+ * Le letture di pagina erano un tetto per ricerca: con tre ricerche che
+ * leggono Vinted diventavano il triplo, e nessuno lo aveva deciso. Adesso il
+ * budget è della passata e le ricerche se lo dividono nell'ordine in cui
+ * girano. Una scansione lanciata a mano si apre il suo, perché è una sola.
+ * ------------------------------------------------------------------------ */
+let budget = null;
+const newBudget = () => ({
+  details: CONFIG.vinted.maxDetailFetches,
+  dates: CONFIG.vinted.maxDateFetches,
+});
+
 export async function runSearch(search, { trigger = 'manual' } = {}) {
   const runId = beginRun(search.id, trigger);
+  const ownBudget = budget == null;
+  if (ownBudget) budget = newBudget();
   try {
     const out = await runSearchInner(search);
     endRun(runId, out);
@@ -65,6 +80,7 @@ export async function runSearch(search, { trigger = 'manual' } = {}) {
     throw e;
   } finally {
     progress.delete(Number(search.id));
+    if (ownBudget) budget = null;
   }
 }
 
@@ -158,12 +174,16 @@ async function runSearchInner(search) {
     const needing = candidates
       .filter((c) => c.r.needsDetail && inPrice(c) && !resolved(c))
       .sort((a, b) => a.r.price - b.r.price)
-      .slice(0, CONFIG.vinted.maxDetailFetches);
+      .slice(0, Math.max(0, budget?.details ?? CONFIG.vinted.maxDetailFetches));
     let fetched = 0, dated = 0;
     for (const c of needing) {
+      // In castigo le richieste tornerebbero vuote: meglio fermarsi e lasciare
+      // il budget alla prossima ricerca, o alla prossima passata.
+      if (vinted.cooling() > CONFIG.vinted.maxWaitMs) { log('  vinted in pausa, salto i dettagli'); break; }
       const d = await vinted.detail(c.r.url);
       fetched++;
-      await sleep(CONFIG.politeness.detailMs);
+      if (budget) budget.details--;
+      // la pausa la tiene il freno dentro all'adattatore, non serve qui
       if (!d) continue;
       // d.gone: la pagina risponde 200 ma è quella del "non trovato"
       if (d.gone || !d.inStock) { c.gone = true; continue; }
@@ -215,7 +235,8 @@ async function runSearchInner(search) {
       JOIN matches m ON m.listing_id = l.id
       WHERE m.search_id = ? AND l.source = 'vinted'
         AND l.posted_at IS NULL AND l.sold_at IS NULL
-      ORDER BY l.price ASC LIMIT ?`).all(search.id, CONFIG.vinted.maxDateFetches);
+      ORDER BY l.price ASC LIMIT ?`)
+      .all(search.id, Math.max(0, budget?.dates ?? CONFIG.vinted.maxDateFetches));
 
     if (missing.length) {
       setProgress(Number(search.id), {
@@ -223,8 +244,9 @@ async function runSearchInner(search) {
       });
       let dated = 0, retired = 0;
       for (const row of missing) {
+        if (vinted.cooling() > CONFIG.vinted.maxWaitMs) { log('  vinted in pausa, salto le date'); break; }
         const d = await vinted.detail(row.url);
-        await sleep(CONFIG.politeness.detailMs);
+        if (budget) budget.dates--;
         if (!d) continue;
         // Questa fase apre proprio le righe che si vedono in tabella, quindi è
         // il posto giusto per accorgersi che una non esiste più: senza, un
@@ -269,7 +291,8 @@ async function runSearchInner(search) {
     if (source?.isSold) {
       try { gone = await source.isSold(st.url); } catch { gone = null; }
       asked++;
-      await sleep(CONFIG.politeness.detailMs);
+      // Vinted ha il suo freno interno; le altre fonti la pausa la vogliono qui.
+      if (st.source !== 'vinted') await sleep(CONFIG.politeness.detailMs);
     }
     if (gone === true) { sold.run(st.id); confirmed++; continue; }
     // Vivo: l'assenza era del catalogo, non dell'annuncio, e non deve pesare.
@@ -288,10 +311,18 @@ export async function sweep({ trigger = 'sweep' } = {}) {
   const searches = db.prepare('SELECT * FROM searches WHERE enabled = 1 ORDER BY id').all();
   if (!searches.length) { log('no enabled searches'); return; }
   log(`sweeping ${searches.length} search(es)`);
-  for (const s of searches) {
-    log(`> ${s.name}`);
-    try { await runSearch(s, { trigger }); }
-    catch (e) { log(`  ${s.name} failed: ${e.message}`); }
+  // Un budget solo per tutta la passata, e un castigo preso sei ore fa non
+  // deve pesare su questa.
+  budget = newBudget();
+  vinted.resetLimiter();
+  try {
+    for (const s of searches) {
+      log(`> ${s.name}`);
+      try { await runSearch(s, { trigger }); }
+      catch (e) { log(`  ${s.name} failed: ${e.message}`); }
+    }
+  } finally {
+    budget = null;
   }
   log('sweep complete');
 }

@@ -19,16 +19,29 @@ export const CONFIG = {
     'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0 Safari/537.36',
   vinted: {
     host: process.env.VINTED_HOST || 'vinted.it',
-    // Vinted rate-limits hard; re-bootstrap the anonymous session this often
-    rotateEvery: Number(process.env.VINTED_ROTATE_EVERY || 10),
+    // Intervallo minimo fra due richieste a Vinted, qualunque fase le chieda.
+    // Prima ogni fase aveva la sua pausa e due non ne avevano nessuna, quindi
+    // il ritmo vero non era scritto da nessuna parte.
+    minGapMs: Number(process.env.VINTED_MIN_GAP_MS || 1100),
+    // Quanto si sta fermi al primo rifiuto; raddoppia a ogni recidiva fino al
+    // tetto. maxWait è quanto si è disposti ad aspettare dentro una passata:
+    // oltre, si lascia perdere Vinted per questo giro invece di restare appesi
+    // mentre le altre ricerche aspettano il loro turno.
+    coolMs: Number(process.env.VINTED_COOL_MS || 60_000),
+    maxCoolMs: Number(process.env.VINTED_MAX_COOL_MS || 15 * 60_000),
+    maxWaitMs: Number(process.env.VINTED_MAX_WAIT_MS || 90_000),
+    // Rifare la sessione costa una richiesta alla home, che è quasi 2 MB. Ogni
+    // dieci voleva dire un decimo del traffico speso a ripresentarsi; adesso il
+    // ritmo lo tiene il freno, e la sessione si rifà soprattutto quando scade.
+    rotateEvery: Number(process.env.VINTED_ROTATE_EVERY || 40),
     // Il catalogo dà solo i titoli, e nemmeno una data: specifiche e data di
     // pubblicazione costano una pagina ciascuna, letta dai candidati più
-    // economici in giù. A 900 ms l'una, 120 sono quasi due minuti per ricerca —
-    // sostenibili con le scansioni ogni sei ore, non lo erano ogni ora.
+    // economici in giù.
+    //
+    // Questi due sono il budget di una PASSATA INTERA, non di una ricerca:
+    // erano per ricerca, e con tre ricerche che leggono Vinted diventavano il
+    // triplo senza che nessuno lo avesse deciso.
     maxDetailFetches: Number(process.env.VINTED_MAX_DETAILS || 120),
-    // Secondo giro, solo sulle corrispondenze rimaste senza data. È il numero
-    // di annunci nuovi che una passata può datare; non ricresce, perché una
-    // data presa resta e la volta dopo quella riga non viene più riletta.
     maxDateFetches: Number(process.env.VINTED_MAX_DATES || 80),
   },
   politeness: { subitoMs: 250, wallapopMs: 300, vintedMs: 250, detailMs: 900, sellerMs: 400 },

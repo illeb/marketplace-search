@@ -10,6 +10,70 @@ export const id = 'vinted';
 
 let jar = '', sinceRotate = 0;
 
+/* ---- il freno ------------------------------------------------------------
+ * Vinted limita, e quando lo fa insistere peggiora le cose: le richieste dopo
+ * tornano vuote e il blocco si allunga. Prima il ritmo lo decideva chi
+ * chiamava — una pausa diversa per ogni fase, e il bootstrap e la reputazione
+ * del venditore nessuna — quindi non c'era un ritmo, ce n'erano quattro, e
+ * sommandosi su tre ricerche diventavano centinaia di richieste ravvicinate.
+ *
+ * Adesso ogni richiesta passa di qui: un intervallo minimo fra due, e quando
+ * arriva un rifiuto ci si ferma per un po', raddoppiando a ogni recidiva. Se
+ * l'attesa è breve la si aspetta e si tira dritto; se è lunga si smette di
+ * chiedere, e chi chiama lo scopre da cooling() e salta la fase invece di
+ * sprecare richieste che tornerebbero vuote comunque.
+ * ------------------------------------------------------------------------ */
+let nextAt = 0;         // quando è lecita la prossima richiesta
+let blockedUntil = 0;   // fin quando Vinted ci ha messo in castigo
+let strikes = 0;        // rifiuti di fila, per allungare l'attesa
+
+/** Millisecondi che mancano alla fine del castigo, 0 se non siamo in castigo. */
+export const cooling = () => Math.max(0, blockedUntil - Date.now());
+
+/** Azzera lo stato fra una passata e l'altra, così un castigo non è eterno. */
+export function resetLimiter() {
+  blockedUntil = 0; strikes = 0;
+}
+
+function penalise(res) {
+  strikes++;
+  // Retry-After quando c'è: è Vinted stessa a dire quanto aspettare.
+  const ra = Number(res?.headers?.get?.('retry-after'));
+  const asked = Number.isFinite(ra) && ra > 0 ? ra * 1000 : 0;
+  const mine = Math.min(CONFIG.vinted.coolMs * 2 ** (strikes - 1), CONFIG.vinted.maxCoolMs);
+  blockedUntil = Date.now() + Math.max(asked, mine);
+}
+
+const LIMITED = /rate.?limit|too many requests|slow down/i;
+
+/** Ogni fetch verso Vinted passa da qui. Null se siamo in castigo lungo. */
+async function paced(url, init) {
+  const cool = cooling();
+  if (cool > 0) {
+    // un castigo breve si aspetta, uno lungo no: tanto vale lasciar perdere
+    if (cool > CONFIG.vinted.maxWaitMs) return null;
+    await sleep(cool);
+  }
+  // Lo slot si prenota prima di dormirci sopra: se due chiamanti arrivano
+  // insieme — una scansione a mano mentre gira la passata — leggendo nextAt e
+  // solo dopo spostandolo si addormenterebbero entrambi fino allo stesso
+  // istante e partirebbero appaiati, che è l'opposto di quel che serve.
+  const slot = Math.max(Date.now(), nextAt);
+  nextAt = slot + CONFIG.vinted.minGapMs;
+  const wait = slot - Date.now();
+  if (wait > 0) await sleep(wait);
+
+  const res = await fetch(url, init);
+  if (res.status === 429 || res.status === 403) { penalise(res); return res; }
+  // Qualche rifiuto arriva con uno stato innocuo e il motivo nel corpo.
+  if (!res.ok) {
+    const peek = await res.clone().text().catch(() => '');
+    if (LIMITED.test(peek.slice(0, 2000))) { penalise(res); return res; }
+  }
+  if (res.ok) strikes = 0;
+  return res;
+}
+
 function readSetCookies(res) {
   const list = typeof res.headers.getSetCookie === 'function'
     ? res.headers.getSetCookie()
@@ -26,8 +90,9 @@ function readSetCookies(res) {
 }
 
 async function bootstrap() {
-  const res = await fetch(`${WEB()}/`, { headers: {
+  const res = await paced(`${WEB()}/`, { headers: {
     'user-agent': CONFIG.userAgent, accept: 'text/html', 'accept-language': 'it-IT,it;q=0.9' } });
+  if (!res) throw new Error('Vinted ci ha messo in pausa');
   const map = readSetCookies(res);
   if (!map.has('access_token_web')) throw new Error(`Vinted refused an anonymous session (HTTP ${res.status})`);
   jar = [...map].map(([k, v]) => `${k}=${v}`).join('; ');
@@ -38,7 +103,7 @@ async function authed(url, accept = 'application/json, text/plain, */*') {
   if (!jar || sinceRotate >= CONFIG.vinted.rotateEvery) await bootstrap();
   sinceRotate++;
   const anon = jar.match(/(?:^|;\s*)anon_id=([^;]+)/)?.[1] || '';
-  return fetch(url, { headers: {
+  return paced(url, { headers: {
     'user-agent': CONFIG.userAgent, accept, 'accept-language': 'it-IT,it;q=0.9',
     origin: WEB(), referer: `${WEB()}/catalog`, cookie: jar, ...(anon ? { 'x-anon-id': anon } : {}) } });
 }
@@ -56,7 +121,15 @@ export async function search({ query, minPrice = 0, maxPrice = 1000, maxPages = 
     if (minPrice > 0) p.set('price_from', String(Math.floor(minPrice)));
     let r;
     try { r = await authed(`${API()}?${p}`); } catch { break; }
-    if (r.status === 401 || r.status === 403) { jar = ''; try { r = await authed(`${API()}?${p}`); } catch { break; } }
+    // null: siamo in castigo, e insistere lo allunga soltanto
+    if (!r) break;
+    // 401 è la sessione scaduta e si rifà; 403 no, quello è un rifiuto e il
+    // freno lo ha già registrato — ribootstrappare ci aggiungerebbe richieste.
+    if (r.status === 401) {
+      jar = '';
+      try { r = await authed(`${API()}?${p}`); } catch { break; }
+      if (!r) break;
+    }
     if (!r.ok) break;
     const d = await r.json();
     const items = d.items || [];
@@ -72,7 +145,8 @@ export async function search({ query, minPrice = 0, maxPrice = 1000, maxPages = 
       imageUrl: x.photo?.url || x.photo?.thumbnails?.at(-1)?.url || null,
     });
     if (page >= (d.pagination?.total_pages || 1) || !items.length) break;
-    await sleep(CONFIG.politeness.vintedMs);
+    // nessuna pausa qui: il ritmo lo tiene paced(), ed era proprio averne una
+    // diversa per fase il motivo per cui il ritmo vero non lo sapeva nessuno
   }
   return out;
 }
@@ -134,6 +208,7 @@ const NOT_FOUND_TITLE = /<title>\s*Vinted\s*<\/title>/i;
 async function readItemPage(url) {
   try {
     const r = await authed(url, 'text/html');
+    if (!r) return null;                       // in castigo: non si sa
     if (r.status === 404 || r.status === 410) return { gone: true };
     if (!r.ok) return null;
     const html = await r.text();
@@ -157,9 +232,9 @@ export const detail = readItemPage;
 export async function seller(sellerId) {
   try {
     if (!jar) await bootstrap();
-    const r = await fetch(`${WEB()}/api/v2/users/${sellerId}`, { headers: {
+    const r = await paced(`${WEB()}/api/v2/users/${sellerId}`, { headers: {
       'user-agent': CONFIG.userAgent, accept: 'application/json', referer: `${WEB()}/`, cookie: jar } });
-    if (!r.ok) return null;
+    if (!r?.ok) return null;
     const u = (await r.json()).user;
     if (!u?.id) return null;
     const reviews = u.feedback_count ?? 0, neg = u.negative_feedback_count ?? 0;
