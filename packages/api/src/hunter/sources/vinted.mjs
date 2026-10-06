@@ -35,9 +35,16 @@ export const cooling = () => Math.max(0, blockedUntil - Date.now());
 /** L'intervallo in vigore, per poterlo guardare dai log e dalle prove. */
 export const currentGap = () => gap || CONFIG.vinted.minGapMs;
 
-/** Azzera lo stato fra una passata e l'altra, così un castigo non è eterno. */
+/**
+ * Fra una passata e l'altra si azzera il castigo — preso sei ore fa, non deve
+ * pesare su questa — ma non il ritmo imparato. Ripartire ogni volta dal minimo
+ * voleva dire ribeccarsi il primo rifiuto all'inizio di ogni fase dettagli,
+ * perché la lezione si perdeva: ora il passo resta quello che ha funzionato, e
+ * si restringe da sé dopo una fila di risposte buone.
+ */
 export function resetLimiter() {
-  blockedUntil = 0; strikes = 0; gap = CONFIG.vinted.minGapMs; streak = 0;
+  blockedUntil = 0; strikes = 0; streak = 0;
+  if (!gap) gap = CONFIG.vinted.minGapMs;
 }
 
 function penalise(res) {

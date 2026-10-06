@@ -352,7 +352,15 @@ Pausing alone only absorbs a refusal, it does not avoid the next one: resuming a
 the same rate walks into it again. So a refusal also widens the gap by half, up
 to `VINTED_MAX_GAP_MS`, and it stays wide until `VINTED_EASE_AFTER` consecutive
 good answers earn it back. A sweep therefore settles on the pace Vinted will
-tolerate that day instead of waiting for someone to guess the right number.
+tolerate that day instead of waiting for someone to guess the right number, and
+the pace it learned carries into the next sweep — only the cooldown is cleared.
+Starting every sweep back at the minimum simply earned the same first refusal
+again at the start of every detail phase.
+
+Measured on one search, before and after: 4 refusals out of 131 item pages with a
+fixed gap, 2 out of 127 once the gap adapts, same 106 adverts dated and 35s
+faster because fewer cooldowns were served. Vinted's own limiter state carries
+between runs, so treat that as a direction, not a controlled experiment.
 
 The page budget is now per sweep, and the session is rebuilt every 40 requests
 rather than every 10.
