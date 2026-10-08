@@ -146,6 +146,27 @@ const FAMILIES = [
 
 const familyOf = (T) => FAMILIES.find(([re]) => re.test(T))?.[1] ?? null;
 
+/* ---- annunci a listino ---------------------------------------------------
+ * Chi vende macchine ricondizionate spesso pubblica una base e sotto l'elenco
+ * dei sovrapprezzi. Letta tutta, la descrizione dice "i5-6500T" e "32 gb" di un
+ * computer che a quel prezzo non esiste, quindi su questi annunci si parte dal
+ * solo titolo.
+ *
+ * Il prezzo va riconosciuto anche scritto a parole: questo annuncio elencava
+ * "con cpu i3-7100T + 20 euro" sei volte senza un solo simbolo €, passava per
+ * normale, e un Celeron da 79 € è finito in cima a una rosa come i3 di settima
+ * generazione.
+ * ------------------------------------------------------------------------ */
+const PRICE_TOKEN = /\d{1,4}\s*(?:€|euros?\b)/gi;
+const UPGRADE_LINE = /\+\s*\d{1,4}\s*(?:€|euros?\b)/gi;
+
+export function isTiered(desc) {
+  const d = String(desc || '');
+  return [...d.matchAll(UPGRADE_LINE)].length >= 2
+    || [...d.matchAll(PRICE_TOKEN)].length >= 2
+    || /con\s*\d+\s*(?:€|euros?)\s*in\s*piu|con\s*\d+\s*(?:€|euros?)\s*posso/i.test(d);
+}
+
 export function parseMachine(title, desc) {
   const t = (title || '').replace(/\s+/g, ' ').trim();
   if (ACCESSORY.test(t) || ACCESSORY_STEM.test(t) || ACCESSORY_LEAD.test(t)
@@ -157,8 +178,7 @@ export function parseMachine(title, desc) {
   // barebones advert whose options read "RAM 4/8/16/32 Gb -> +12/+25/+50/+100 €"
   // and "Intel i7-6700 +50€" was being recorded as a 50 euro i7 with 32 GB.
   // The title is what the headline price actually buys.
-  const tiered = [...(desc || '').matchAll(/\d{2,4}\s*€/g)].length >= 2
-    || /con\s*\d+\s*€\s*in\s*piu|con\s*\d+\s*€\s*posso/i.test(desc || '');
+  const tiered = isTiered(desc);
   const T = (tiered ? t : t + ' ## ' + (desc || '')).toLowerCase();
   const conf = {};
   const o = { kind: 'machine' };
@@ -328,8 +348,7 @@ export function parseOther(title, desc) {
   const t = (title || '').replace(/\s+/g, ' ').trim();
   if (!t) return null;
   return { kind: 'other',
-    tiered: [...(desc || '').matchAll(/\d{2,4}\s*€/g)].length >= 2
-         || /con\s*\d+\s*€\s*in\s*piu|con\s*\d+\s*€\s*posso/i.test(desc || ''),
+    tiered: isTiered(desc),
     confidence: {} };
 }
 
