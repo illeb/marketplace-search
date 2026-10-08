@@ -215,7 +215,12 @@ export function parseMachine(title, desc) {
   // Sellers glue the form factor onto the model: "optiplex 790sff" has no word
   // boundary before "sff", so \bsff\b missed it and the machine landed in
   // Unstated. A digit on either side is allowed, a letter is not.
-  const MICRO = /(?<![a-z])(mff|micro|tiny|usff|desktop mini|mini ?pc|dm)(?![a-z])|\bmini\b(?!\s*-?\s*(?:tower|tour|torre|atx|itx|display|dp\b|jack|hdmi|usb|sd\b|pci|serveur))/;
+  // "micro" ha la stessa trappola di "mini": un "micro tower" è un tower, e
+  // leggendolo come micro si consiglia un cassone da 7 litri a chi cerca una
+  // scatoletta da uno. Succedeva davvero — "HP ProDesk 490 G1 MT" con la
+  // descrizione "in formato Micro Tower (MT)" risultava Micro, perché questa
+  // riga viene provata prima di TOWER.
+  const MICRO = /(?<![a-z])(mff|tiny|usff|desktop mini|mini ?pc|dm)(?![a-z])|\bmicro\b(?!\s*-?\s*(?:tower|tour|torre|atx))|\bmini\b(?!\s*-?\s*(?:tower|tour|torre|atx|itx|display|dp\b|jack|hdmi|usb|sd\b|pci|serveur))/;
   const TOWER = /(?<![a-z])(torre|tower|minitower|micro ?tower|mt|twr|tour)(?![a-z])/;
   const SFF   = /(?<![a-z])(sff|small form factor|desktop small)(?![a-z])/;
   // HP's USDT is an ultra-slim desktop of about 2.6 litres, not the 1-litre
